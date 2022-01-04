@@ -25,17 +25,18 @@ class CompletedExperiment:
 
     def __str__(self):
         return dedent(f"""
-        CompletedExperiment(" \
-            res: {self.res}" \
-            output_folders: {self.output_folders}" \
+        CompletedExperiment(" 
+            res: {self.res}" 
+            output_folders: {self.output_folders}" 
         """)
 
 
-def main(project_paths: List[Path], run_all_experiments: bool, cli_args: List[str], cli_run_override: Path):
+def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_run_override: Path, build_args: List[str] = [], cli_args: List[str] = [], continue_on_fail=False):
     # make sure it's built
-    build = subprocess.run(['cargo', 'build', '--release'])
+    build_cmd = ['cargo', 'build', '--release'] + build_args
+    build = subprocess.run(build_cmd)
     if build.returncode != 0:
-        raise Exception("Cargo build failed")
+        raise Exception(f"Cargo build failed, cmd: {build_cmd}")
 
     if cli_run_override:
         base_run_cmd = [str(cli_run_override), '-p']
@@ -70,27 +71,34 @@ def main(project_paths: List[Path], run_all_experiments: bool, cli_args: List[st
             process = subprocess.run(run_cmd, capture_output=True)
             stdout = process.stdout.decode()
             stderr = process.stderr.decode()
-
+            
             if process.returncode != 0:
                 print(f"Running Experiment failed:")
                 print(f"stdout: \n{stdout}")
-                print(f"stderr: \n{process.stderr.decode()}")
-                experiment_runs[experiment_name] = Result.FAIL
+                print(f"stderr: \n{stderr}")
+                experiment_runs[experiment_name] = CompletedExperiment(Result.FAIL, [])
+                
+                if not continue_on_fail:
+                    break
 
             else:
                 print(f"Running Experiment succeeded")
                 try:
-                    experiment_id_patt = re.compile(r'Running experiment (\S*)', re.MULTILINE)
+                    experiment_id_patt = re.compile(r'Running experiment (( |\S)*)', re.MULTILINE)
                     experiment_id = experiment_id_patt.search(stderr).group(1)
                 except Exception as err:
                     print(f"Couldn't extract ExperimentId for {run_cmd}: {err}")
+                    print(f"stdout: \n{stdout}")
+                    print(f"stderr: \n{stderr}")
                     return
 
                 try:
-                    output_dir_patt = re.compile(r'Making new output directory directory: (\S*)', re.MULTILINE)
-                    output_paths = [Path(match) for match in output_dir_patt.findall(stderr)]
+                    output_dir_patt = re.compile(r'Making new output directory directory: (( |\S)*)', re.MULTILINE)
+                    output_paths = [Path(match[0].strip('"')) for match in output_dir_patt.findall(stderr)]
                 except Exception as err:
                     print(f"Couldn't extract Output paths for {run_cmd}: {err}")
+                    print(f"stdout: \n{stdout}")
+                    print(f"stderr: \n{stderr}")
                     return
 
                 experiment_runs[experiment_id] = CompletedExperiment(Result.SUCCESS, output_paths)
@@ -124,7 +132,7 @@ if __name__ == "__main__":
                         ))
 
     args = parser.parse_args()
-    sim_results = main(project_paths=args.project_paths, run_all_experiments=args.run_all_experiments,
+    sim_results = run_experiments(project_paths=args.project_paths, run_all_experiments=args.run_all_experiments,
                        cli_args=args.cli_args, cli_run_override=args.cli_bin)
 
     pprint.pprint(sim_results)
