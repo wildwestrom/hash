@@ -44,7 +44,7 @@ impl Buffers {
 // TODO: These should live in the respective output package really
 #[derive(Serialize)]
 pub struct AnalysisBuffer {
-    pub manifest: String,
+    pub manifest: serde_json::Value,
     pub buffers: HashMap<Arc<String>, Vec<AnalysisSingleOutput>>,
 }
 
