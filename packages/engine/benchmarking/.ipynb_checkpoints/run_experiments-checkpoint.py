@@ -3,6 +3,7 @@ import subprocess
 import re
 import json
 import pprint
+import time
 from enum import Enum
 from textwrap import dedent
 from pathlib import Path
@@ -16,38 +17,62 @@ class Result(Enum):
 
 
 class CompletedExperiment:
-    def __init__(self, res: Result, output_folders: List[Path], time_to_completion:):
+    def __init__(self, res: Result, output_folders: List[Path], time_to_completion: float, max_vms_memory: float,
+                 max_rss_memory: float, max_shared_memory: float, max_uss_memory: float):
         self.res = res
         self.output_folders = output_folders
-        self.time_to_completion = 
+        self.time_to_completion = time_to_completion
+        self.max_vms_memory = max_vms_memory
+        self.max_rss_memory = max_rss_memory
+        self.max_shared_memory = max_shared_memory
+        self.max_uss_memory = max_uss_memory
 
     def __repr__(self):
-        return f"CompletedExperiment(res: {self.res}, output_folders: {self.output_folders})"
+        return f"CompletedExperiment(res: {self.res}, output_folders: {self.output_folders}, " + \
+               f"completion_time: {self.time_to_completion}, max_vms_memory: {self.max_vms_memory}, " + \
+               f"max_rss_memory: {self.max_rss_memory}, max_shared_memory: {self.max_shared_memory}, " + \
+               f"max_uss_memory: {self.max_uss_memory})"
 
     def __str__(self):
         return dedent(f"""
-        CompletedExperiment(" 
-            res: {self.res}" 
-            output_folders: {self.output_folders}" 
+        CompletedExperiment( 
+            res: {self.res} 
+            output_folders: {self.output_folders} 
+            completion_time: {self.time_to_completion}
+            max_vms_memory: {self.max_vms_memory}
+            max_rss_memory: {self.max_rss_memory}
+            max_shared_memory: {self.max_shared_memory}
+            max_uss_memory: {self.max_uss_memory}
         """)
+
 
 # https://stackoverflow.com/questions/13607391/subprocess-memory-usage-in-python
 class ProcessTimer:
-    def __init__(self,command):
+    def __init__(self, command):
         self.command = command
+        self.execution_state = False
+        self.max_vms_memory = None
+        self.max_rss_memory = None
+        self.max_shared_memory = None
+        self.max_uss_memory = None
+        self.t0 = None
+        self.t1 = None
+        self.p = None
         self.execution_state = False
 
     def execute(self):
         self.max_vms_memory = 0
         self.max_rss_memory = 0
-        
+        self.max_shared_memory = 0
+        self.max_uss_memory = 0
+
         self.t1 = None
         self.t0 = time.time()
-        self.p = subprocess.Popen(self.command, 
-                                  stdout=subprocess.PIPE, 
-                                  stderr=subprocess.PIPE
+        self.p = subprocess.Popen(self.command,
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE,
                                   shell=False
-                                 )
+                                  )
         self.execution_state = True
 
     def poll(self):
@@ -59,60 +84,76 @@ class ProcessTimer:
         try:
             pp = psutil.Process(self.p.pid)
 
-            #obtain a list of the subprocess and all its descendants
-            descendants = list(pp.get_children(recursive=True))
+            # obtain a list of the subprocess and all its descendants
+            descendants = list(pp.children(recursive=True))
             descendants = descendants + [pp]
 
             rss_memory = 0
             vms_memory = 0
+            shared_memory = 0
+            uss_memory = 0
 
-            #calculate and sum up the memory of the subprocess and all its descendants 
+            # calculate and sum up the memory of the subprocess and all its descendants
             for descendant in descendants:
                 try:
-                    mem_info = descendant.get_memory_info()
+                    # todo memory_full_info
+                    mem_info = descendant.memory_info()
+                    # mem_info = descendant.memory_info()
 
-                    rss_memory += mem_info[0]
-                    vms_memory += mem_info[1]
-                except psutil.error.NoSuchProcess:
-                    #sometimes a subprocess descendant will have terminated between the time
+                    rss_memory += mem_info.rss
+                    vms_memory += mem_info.vms
+                    try:  # only works on linux
+                        shared_memory += mem_info.shared
+                        uss_memory += mem_info.uss
+                    except AttributeError:
+                        shared_memory = None
+                except psutil.NoSuchProcess:
+                    # sometimes a subprocess descendant will have terminated between the time
                     # we obtain a list of descendants, and the time we actually poll this
                     # descendant's memory usage.
                     pass
-            self.max_vms_memory = max(self.max_vms_memory,vms_memory)
-            self.max_rss_memory = max(self.max_rss_memory,rss_memory)
+            self.max_vms_memory = max(self.max_vms_memory, vms_memory)
+            self.max_rss_memory = max(self.max_rss_memory, rss_memory)
+            if shared_memory is not None:
+                self.max_shared_memory = max(self.max_shared_memory, shared_memory)
+            else:
+                self.max_shared_memory = None
+            if uss_memory is not None:
+                self.max_uss_memory = max(self.max_uss_memory, uss_memory)
+            else:
+                self.max_uss_memory = None
+            
 
-        except psutil.error.NoSuchProcess:
+        except psutil.NoSuchProcess:
             return self.check_execution_state()
-    
+
         return self.check_execution_state()
 
-
     def is_running(self):
-        return psutil.pid_exists(self.p.pid) and self.p.poll() == None
+        return psutil.pid_exists(self.p.pid) and self.p.poll() is None
+
     def check_execution_state(self):
         if not self.execution_state:
             return False
         if self.is_running():
             return True
-        self.executation_state = False
+        self.execution_state = False
         self.t1 = time.time()
         return False
 
     def close(self, kill=False):
-        stdout = p.stdout.decode()
-        stderr = p.stderr.decode()
         try:
             pp = psutil.Process(self.p.pid)
             if kill:
                 pp.kill()
             else:
                 pp.terminate()
-        except psutil.error.NoSuchProcess:
+        except psutil.NoSuchProcess:
             pass
-        
-        return (stdout, stderr)
 
-def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_run_override: Path, build_args: List[str] = [], cli_args: List[str] = [], continue_on_fail=False):
+
+def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_run_override: Path,
+                    build_args: List[str] = [], cli_args: List[str] = [], continue_on_fail=False):
     # make sure it's built
     build_cmd = ['cargo', 'build', '--release'] + build_args
     build = subprocess.run(build_cmd)
@@ -149,16 +190,38 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
 
         for (experiment_name, run_cmd) in run_cmds:
             print(f"Running Experiment with cmd: {' '.join(run_cmd)}")
-            process = subprocess.run(run_cmd, capture_output=True)
-            stdout = process.stdout.decode()
-            stderr = process.stderr.decode()
-            
-            if process.returncode != 0:
+
+            process_timer = ProcessTimer(run_cmd)
+
+            try:
+                process_timer.execute()
+                # poll as often as possible; otherwise the subprocess might
+                # "sneak" in some extra memory usage while you aren't looking
+                while process_timer.poll():
+                    time.sleep(.1)
+            finally:
+                # make sure that we don't leave the process dangling
+                process_timer.close()
+
+            stdout = process_timer.p.stdout.read().decode()
+            stderr = process_timer.p.stderr.read().decode()
+            time_taken = process_timer.t1 - process_timer.t0
+            return_code = process_timer.p.returncode
+
+            print(f"Time taken: {time_taken}")
+            print(f"max_vms_memory: {process_timer.max_vms_memory}")
+            print(f"max_rss_memory: {process_timer.max_rss_memory}")
+
+            if return_code != 0:
                 print(f"Running Experiment failed:")
                 print(f"stdout: \n{stdout}")
                 print(f"stderr: \n{stderr}")
-                experiment_runs[experiment_name] = CompletedExperiment(Result.FAIL, [])
-                
+                experiment_runs[experiment_name] = CompletedExperiment(Result.FAIL, [], time_taken,
+                                                                       process_timer.max_vms_memory,
+                                                                       process_timer.max_rss_memory,
+                                                                       process_timer.max_shared_memory,
+                                                                       process_timer.max_uss_memory)
+
                 if not continue_on_fail:
                     break
 
@@ -182,11 +245,15 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
                     print(f"stderr: \n{stderr}")
                     return
 
-                experiment_runs[experiment_id] = CompletedExperiment(Result.SUCCESS, output_paths)
+                experiment_runs[experiment_id] = CompletedExperiment(Result.SUCCESS, output_paths, time_taken,
+                                                                     process_timer.max_vms_memory,
+                                                                     process_timer.max_rss_memory,
+                                                                     process_timer.max_shared_memory,
+                                                                     process_timer.max_uss_memory)
 
-        results[project_path_str] = experiment_runs
+            results[project_path_str] = experiment_runs
 
-    return results
+        return results
 
 
 if __name__ == "__main__":
@@ -206,6 +273,10 @@ if __name__ == "__main__":
                             """Path to the CLI executable binary, if not provided it defaults to using: \
                             `cargo run --release --bin cli`"""
                         ))
+    parser.add_argument('--no-default-features', action='store_true',
+                        help=dedent(
+                            """Whether or not to cargo build with default features"""
+                        ))
     parser.add_argument('cli_args', nargs="*", type=str, default=[],
                         help=dedent(
                             """A space-separated list of (quoted) arguments to pass to the engine. 
@@ -214,6 +285,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     sim_results = run_experiments(project_paths=args.project_paths, run_all_experiments=args.run_all_experiments,
-                       cli_args=args.cli_args, cli_run_override=args.cli_bin)
+                                  build_args=['--no-default-features'] if args.no_default_features else [],
+                                  cli_args=args.cli_args, cli_run_override=args.cli_bin)
 
     pprint.pprint(sim_results)

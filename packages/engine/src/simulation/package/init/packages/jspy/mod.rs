@@ -102,7 +102,7 @@ impl InitPackage for Package {
         match TryInto::<SuccessMessage>::try_into(task_message) {
             Ok(SuccessMessage { agent_json }) => serde_json::from_str(&agent_json).map_err(|e| {
                 Error::from(format!(
-                    "Failed to parse agent state JSON to Vec<Agent>: {:?}",
+                    "Failed to parse agent state JSON returned by init.js/py to Vec<Agent>: {:?}",
                     e
                 ))
             }),

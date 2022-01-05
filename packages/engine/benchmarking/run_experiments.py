@@ -18,18 +18,20 @@ class Result(Enum):
 
 class CompletedExperiment:
     def __init__(self, res: Result, output_folders: List[Path], time_to_completion: float, max_vms_memory: float,
-                 max_rss_memory: float, max_shared_memory: float):
+                 max_rss_memory: float, max_shared_memory: float, max_uss_memory: float):
         self.res = res
         self.output_folders = output_folders
         self.time_to_completion = time_to_completion
         self.max_vms_memory = max_vms_memory
         self.max_rss_memory = max_rss_memory
         self.max_shared_memory = max_shared_memory
+        self.max_uss_memory = max_uss_memory
 
     def __repr__(self):
         return f"CompletedExperiment(res: {self.res}, output_folders: {self.output_folders}, " + \
                f"completion_time: {self.time_to_completion}, max_vms_memory: {self.max_vms_memory}, " + \
-               f"max_rss_memory: {self.max_rss_memory}, max_shared_memory: {self.max_shared_memory})"
+               f"max_rss_memory: {self.max_rss_memory}, max_shared_memory: {self.max_shared_memory}, " + \
+               f"max_uss_memory: {self.max_uss_memory})"
 
     def __str__(self):
         return dedent(f"""
@@ -40,6 +42,7 @@ class CompletedExperiment:
             max_vms_memory: {self.max_vms_memory}
             max_rss_memory: {self.max_rss_memory}
             max_shared_memory: {self.max_shared_memory}
+            max_uss_memory: {self.max_uss_memory}
         """)
 
 
@@ -51,6 +54,7 @@ class ProcessTimer:
         self.max_vms_memory = None
         self.max_rss_memory = None
         self.max_shared_memory = None
+        self.max_uss_memory = None
         self.t0 = None
         self.t1 = None
         self.p = None
@@ -60,6 +64,7 @@ class ProcessTimer:
         self.max_vms_memory = 0
         self.max_rss_memory = 0
         self.max_shared_memory = 0
+        self.max_uss_memory = 0
 
         self.t1 = None
         self.t0 = time.time()
@@ -86,17 +91,20 @@ class ProcessTimer:
             rss_memory = 0
             vms_memory = 0
             shared_memory = 0
+            uss_memory = 0
 
             # calculate and sum up the memory of the subprocess and all its descendants
             for descendant in descendants:
                 try:
-                    # todo full_memory_info
+                    # todo memory_full_info
+                    # mem_info = descendant.memory_full_info()
                     mem_info = descendant.memory_info()
 
                     rss_memory += mem_info.rss
                     vms_memory += mem_info.vms
                     try:  # only works on linux
                         shared_memory += mem_info.shared
+                        uss_memory += mem_info.uss
                     except AttributeError:
                         shared_memory = None
                 except psutil.NoSuchProcess:
@@ -110,6 +118,10 @@ class ProcessTimer:
                 self.max_shared_memory = max(self.max_shared_memory, shared_memory)
             else:
                 self.max_shared_memory = None
+            if uss_memory is not None:
+                self.max_uss_memory = max(self.max_uss_memory, uss_memory)
+            else:
+                self.max_uss_memory = None
 
         except psutil.NoSuchProcess:
             return self.check_execution_state()
@@ -159,6 +171,9 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
         if run_all_experiments:
             experiments_json = json.loads((project_path / 'experiments.json').read_bytes())
             experiment_names = list(experiments_json.keys())
+            # TODO: this is super clumsy, need to figure out a better way, maybe it shouldn't be in experiments.json
+            if "max_sims_in_parallel" in experiment_names:
+                experiment_names.remove("max_sims_in_parallel")
 
             if len(experiment_names) > 0:
                 print(f"Found the following experiments in {project_path}: {experiment_names}")
@@ -206,13 +221,14 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
                 experiment_runs[experiment_name] = CompletedExperiment(Result.FAIL, [], time_taken,
                                                                        process_timer.max_vms_memory,
                                                                        process_timer.max_rss_memory,
-                                                                       process_timer.max_shared_memory)
+                                                                       process_timer.max_shared_memory,
+                                                                       process_timer.max_uss_memory)
 
                 if not continue_on_fail:
                     break
 
             else:
-                print(f"Running Experiment succeeded")
+                print(f"Running Experiment finished")
                 try:
                     experiment_id_patt = re.compile(r'Running experiment (( |\S)*)', re.MULTILINE)
                     experiment_id = experiment_id_patt.search(stderr).group(1)
@@ -225,6 +241,8 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
                 try:
                     output_dir_patt = re.compile(r'Making new output directory directory: (( |\S)*)', re.MULTILINE)
                     output_paths = [Path(match[0].strip('"')) for match in output_dir_patt.findall(stderr)]
+                    if len(output_paths) == 0:
+                        raise Exception("No output paths were found")
                 except Exception as err:
                     print(f"Couldn't extract Output paths for {run_cmd}: {err}")
                     print(f"stdout: \n{stdout}")
@@ -234,7 +252,8 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
                 experiment_runs[experiment_id] = CompletedExperiment(Result.SUCCESS, output_paths, time_taken,
                                                                      process_timer.max_vms_memory,
                                                                      process_timer.max_rss_memory,
-                                                                     process_timer.max_shared_memory)
+                                                                     process_timer.max_shared_memory,
+                                                                     process_timer.max_uss_memory)
 
             results[project_path_str] = experiment_runs
 

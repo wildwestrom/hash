@@ -62,7 +62,7 @@ impl InitPackage for Package {
         // TODO: Map Error when we design package errors
         serde_json::from_str(&self.initial_state_src).map_err(|e| {
             Error::from(format!(
-                "Failed to parse agent state JSON to Vec<Agent>: {:?}",
+                "Failed to parse agent state JSON from init.json to Vec<Agent>: {:?}",
                 e
             ))
         })
