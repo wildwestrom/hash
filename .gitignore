@@ -75,3 +75,4 @@ typings/
 # Python compiled files and package metadata
 **/__pycache__
 **/*.egg-info
+/packages/engine/benchmarking/.ipynb_checkpoints/

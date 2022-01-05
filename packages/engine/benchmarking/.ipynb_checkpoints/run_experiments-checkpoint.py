@@ -6,9 +6,9 @@ import pprint
 from enum import Enum
 from textwrap import dedent
 from pathlib import Path
-
 from typing import List
 
+import psutil
 
 class Result(Enum):
     FAIL = 0,
@@ -16,9 +16,10 @@ class Result(Enum):
 
 
 class CompletedExperiment:
-    def __init__(self, res: Result, output_folders: List[Path]):
+    def __init__(self, res: Result, output_folders: List[Path], time_to_completion:):
         self.res = res
         self.output_folders = output_folders
+        self.time_to_completion = 
 
     def __repr__(self):
         return f"CompletedExperiment(res: {self.res}, output_folders: {self.output_folders})"
@@ -30,6 +31,86 @@ class CompletedExperiment:
             output_folders: {self.output_folders}" 
         """)
 
+# https://stackoverflow.com/questions/13607391/subprocess-memory-usage-in-python
+class ProcessTimer:
+    def __init__(self,command):
+        self.command = command
+        self.execution_state = False
+
+    def execute(self):
+        self.max_vms_memory = 0
+        self.max_rss_memory = 0
+        
+        self.t1 = None
+        self.t0 = time.time()
+        self.p = subprocess.Popen(self.command, 
+                                  stdout=subprocess.PIPE, 
+                                  stderr=subprocess.PIPE
+                                  shell=False
+                                 )
+        self.execution_state = True
+
+    def poll(self):
+        if not self.check_execution_state():
+            return False
+
+        self.t1 = time.time()
+
+        try:
+            pp = psutil.Process(self.p.pid)
+
+            #obtain a list of the subprocess and all its descendants
+            descendants = list(pp.get_children(recursive=True))
+            descendants = descendants + [pp]
+
+            rss_memory = 0
+            vms_memory = 0
+
+            #calculate and sum up the memory of the subprocess and all its descendants 
+            for descendant in descendants:
+                try:
+                    mem_info = descendant.get_memory_info()
+
+                    rss_memory += mem_info[0]
+                    vms_memory += mem_info[1]
+                except psutil.error.NoSuchProcess:
+                    #sometimes a subprocess descendant will have terminated between the time
+                    # we obtain a list of descendants, and the time we actually poll this
+                    # descendant's memory usage.
+                    pass
+            self.max_vms_memory = max(self.max_vms_memory,vms_memory)
+            self.max_rss_memory = max(self.max_rss_memory,rss_memory)
+
+        except psutil.error.NoSuchProcess:
+            return self.check_execution_state()
+    
+        return self.check_execution_state()
+
+
+    def is_running(self):
+        return psutil.pid_exists(self.p.pid) and self.p.poll() == None
+    def check_execution_state(self):
+        if not self.execution_state:
+            return False
+        if self.is_running():
+            return True
+        self.executation_state = False
+        self.t1 = time.time()
+        return False
+
+    def close(self, kill=False):
+        stdout = p.stdout.decode()
+        stderr = p.stderr.decode()
+        try:
+            pp = psutil.Process(self.p.pid)
+            if kill:
+                pp.kill()
+            else:
+                pp.terminate()
+        except psutil.error.NoSuchProcess:
+            pass
+        
+        return (stdout, stderr)
 
 def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_run_override: Path, build_args: List[str] = [], cli_args: List[str] = [], continue_on_fail=False):
     # make sure it's built
