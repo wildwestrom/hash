@@ -97,8 +97,8 @@ class ProcessTimer:
             for descendant in descendants:
                 try:
                     # todo memory_full_info
-                    # mem_info = descendant.memory_full_info()
-                    mem_info = descendant.memory_info()
+                    mem_info = descendant.memory_full_info()
+                    # mem_info = descendant.memory_info()
 
                     rss_memory += mem_info.rss
                     vms_memory += mem_info.vms
