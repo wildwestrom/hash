@@ -29,7 +29,7 @@ class CompletedExperiment:
 
     def __repr__(self):
         return f"CompletedExperiment(res: {self.res}, output_folders: {self.output_folders}, " + \
-               f"completion_time: {self.time_to_completion}, max_vms_memory: {self.max_vms_memory}, " + \
+               f"time_to_completion: {self.time_to_completion}, max_vms_memory: {self.max_vms_memory}, " + \
                f"max_rss_memory: {self.max_rss_memory}, max_shared_memory: {self.max_shared_memory}, " + \
                f"max_uss_memory: {self.max_uss_memory})"
 
@@ -38,7 +38,7 @@ class CompletedExperiment:
         CompletedExperiment( 
             res: {self.res} 
             output_folders: {self.output_folders} 
-            completion_time: {self.time_to_completion}
+            time_to_completion: {self.time_to_completion}
             max_vms_memory: {self.max_vms_memory}
             max_rss_memory: {self.max_rss_memory}
             max_shared_memory: {self.max_shared_memory}
@@ -151,7 +151,7 @@ class ProcessTimer:
             pass
 
 
-def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_run_override: Path,
+def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_run_override: Path = None,
                     build_args: List[str] = [], cli_args: List[str] = [], continue_on_fail=False):
     # make sure it's built
     build_cmd = ['cargo', 'build', '--release'] + build_args
@@ -239,7 +239,7 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
                     return
 
                 try:
-                    output_dir_patt = re.compile(r'Making new output directory directory: (( |\S)*)', re.MULTILINE)
+                    output_dir_patt = re.compile(r'Making new output directory: (( |\S)*)', re.MULTILINE)
                     output_paths = [Path(match[0].strip('"')) for match in output_dir_patt.findall(stderr)]
                     if len(output_paths) == 0:
                         raise Exception("No output paths were found")

@@ -1,6 +1,6 @@
 {
   "keys": {
-    "age": {
+    "field_1": {
       "type": "number",
       "nullable": true
     }

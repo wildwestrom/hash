@@ -29,7 +29,7 @@ class CompletedExperiment:
 
     def __repr__(self):
         return f"CompletedExperiment(res: {self.res}, output_folders: {self.output_folders}, " + \
-               f"completion_time: {self.time_to_completion}, max_vms_memory: {self.max_vms_memory}, " + \
+               f"time_to_completion: {self.time_to_completion}, max_vms_memory: {self.max_vms_memory}, " + \
                f"max_rss_memory: {self.max_rss_memory}, max_shared_memory: {self.max_shared_memory}, " + \
                f"max_uss_memory: {self.max_uss_memory})"
 
@@ -38,7 +38,7 @@ class CompletedExperiment:
         CompletedExperiment( 
             res: {self.res} 
             output_folders: {self.output_folders} 
-            completion_time: {self.time_to_completion}
+            time_to_completion: {self.time_to_completion}
             max_vms_memory: {self.max_vms_memory}
             max_rss_memory: {self.max_rss_memory}
             max_shared_memory: {self.max_shared_memory}
@@ -97,7 +97,7 @@ class ProcessTimer:
             for descendant in descendants:
                 try:
                     # todo memory_full_info
-                    mem_info = descendant.memory_info()
+                    mem_info = descendant.memory_full_info()
                     # mem_info = descendant.memory_info()
 
                     rss_memory += mem_info.rss
@@ -122,7 +122,6 @@ class ProcessTimer:
                 self.max_uss_memory = max(self.max_uss_memory, uss_memory)
             else:
                 self.max_uss_memory = None
-            
 
         except psutil.NoSuchProcess:
             return self.check_execution_state()
@@ -152,7 +151,7 @@ class ProcessTimer:
             pass
 
 
-def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_run_override: Path,
+def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_run_override: Path = None,
                     build_args: List[str] = [], cli_args: List[str] = [], continue_on_fail=False):
     # make sure it's built
     build_cmd = ['cargo', 'build', '--release'] + build_args
@@ -172,6 +171,9 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
         if run_all_experiments:
             experiments_json = json.loads((project_path / 'experiments.json').read_bytes())
             experiment_names = list(experiments_json.keys())
+            # TODO: this is super clumsy, need to figure out a better way, maybe it shouldn't be in experiments.json
+            if "max_sims_in_parallel" in experiment_names:
+                experiment_names.remove("max_sims_in_parallel")
 
             if len(experiment_names) > 0:
                 print(f"Found the following experiments in {project_path}: {experiment_names}")
@@ -226,7 +228,7 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
                     break
 
             else:
-                print(f"Running Experiment succeeded")
+                print(f"Running Experiment finished")
                 try:
                     experiment_id_patt = re.compile(r'Running experiment (( |\S)*)', re.MULTILINE)
                     experiment_id = experiment_id_patt.search(stderr).group(1)
@@ -237,8 +239,10 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
                     return
 
                 try:
-                    output_dir_patt = re.compile(r'Making new output directory directory: (( |\S)*)', re.MULTILINE)
+                    output_dir_patt = re.compile(r'Making new output directory: (( |\S)*)', re.MULTILINE)
                     output_paths = [Path(match[0].strip('"')) for match in output_dir_patt.findall(stderr)]
+                    if len(output_paths) == 0:
+                        raise Exception("No output paths were found")
                 except Exception as err:
                     print(f"Couldn't extract Output paths for {run_cmd}: {err}")
                     print(f"stdout: \n{stdout}")

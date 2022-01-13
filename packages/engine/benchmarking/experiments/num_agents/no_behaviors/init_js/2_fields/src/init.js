@@ -3,5 +3,6 @@ const init = (context) => {
 
   return [...new Array(globals.num_agents).keys()].map((_) => ({
     field_1: 0,
+    field_2: 0
   }));
 };
