@@ -67,7 +67,7 @@ typings/
 **/dist
 
 # vscode config
-.vscode
+.vscode/settings.json
 
 # intellij IDEs config
 /.idea/
@@ -75,5 +75,4 @@ typings/
 # Python compiled files and package metadata
 **/__pycache__
 **/*.egg-info
-/packages/engine/benchmarking/.ipynb_checkpoints/
 /packages/engine/benchmarking/.ipynb_checkpoints/
