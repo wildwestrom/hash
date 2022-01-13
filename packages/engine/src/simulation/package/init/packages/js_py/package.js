@@ -93,13 +93,15 @@ const run_task = (experiment, _sim, task_message, _group_state, context) => {
     throw new Error(`init must return an array not '${typeof agents}'`);
   }
 
-  let data;
+  let task_as_str;
   try {
-    data = {
+    const msg = {
       SuccessMessage: {
-        agent_json: JSON.stringify(agents),
+        agents: agents,
       },
     };
+
+    task_as_str = JSON.stringify(msg);
   } catch (e) {
     throw new Error(
       `could not serialize init return value to JSON: ${e.message}`,
@@ -108,7 +110,7 @@ const run_task = (experiment, _sim, task_message, _group_state, context) => {
 
   // TODO: Change the runner to avoid this, perhaps a function or a well-defined object would make this clearer.
   return {
-    task: JSON.stringify(data),
+    task: task_as_str,
     print: experiment.logged,
   };
 };
