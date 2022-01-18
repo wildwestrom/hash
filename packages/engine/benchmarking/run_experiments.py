@@ -18,7 +18,7 @@ class Result(Enum):
 
 class CompletedExperiment:
     def __init__(self, res: Result, output_folders: List[Path], time_to_completion: float, max_vms_memory: float,
-                 max_rss_memory: float, max_shared_memory: float, max_uss_memory: float):
+                 max_rss_memory: float, max_shared_memory: float, max_uss_memory: float, max_pss_memory: float):
         self.res = res
         self.output_folders = output_folders
         self.time_to_completion = time_to_completion
@@ -26,12 +26,13 @@ class CompletedExperiment:
         self.max_rss_memory = max_rss_memory
         self.max_shared_memory = max_shared_memory
         self.max_uss_memory = max_uss_memory
+        self.max_pss_memory = max_pss_memory
 
     def __repr__(self):
         return f"CompletedExperiment(res: {self.res}, output_folders: {self.output_folders}, " + \
                f"time_to_completion: {self.time_to_completion}, max_vms_memory: {self.max_vms_memory}, " + \
                f"max_rss_memory: {self.max_rss_memory}, max_shared_memory: {self.max_shared_memory}, " + \
-               f"max_uss_memory: {self.max_uss_memory})"
+               f"max_uss_memory: {self.max_uss_memory}, max_pss_memory: {self.max_pss_memory})"
 
     def __str__(self):
         return dedent(f"""
@@ -43,6 +44,7 @@ class CompletedExperiment:
             max_rss_memory: {self.max_rss_memory}
             max_shared_memory: {self.max_shared_memory}
             max_uss_memory: {self.max_uss_memory}
+            max_pss_memory: {self.max_pss_memory}
         """)
 
 
@@ -55,6 +57,7 @@ class ProcessTimer:
         self.max_rss_memory = None
         self.max_shared_memory = None
         self.max_uss_memory = None
+        self.max_pss_memory = None
         self.t0 = None
         self.t1 = None
         self.p = None
@@ -65,6 +68,7 @@ class ProcessTimer:
         self.max_rss_memory = 0
         self.max_shared_memory = 0
         self.max_uss_memory = 0
+        self.max_pss_memory = 0 
 
         self.t1 = None
         self.t0 = time.time()
@@ -87,11 +91,13 @@ class ProcessTimer:
             # obtain a list of the subprocess and all its descendants
             descendants = list(pp.children(recursive=True))
             descendants = descendants + [pp]
-
+            # TODO report on number of processes
+            
             rss_memory = 0
             vms_memory = 0
             shared_memory = 0
             uss_memory = 0
+            pss_memory = 0
 
             # calculate and sum up the memory of the subprocess and all its descendants
             for descendant in descendants:
@@ -105,8 +111,12 @@ class ProcessTimer:
                     try:  # only works on linux
                         shared_memory += mem_info.shared
                         uss_memory += mem_info.uss
-                    except AttributeError:
+                        pss_memory += mem_info.pss
+                    except AttributeError as e:
+                        print(e)
                         shared_memory = None
+                        uss_memory = None
+                        pss_memory = None
                 except psutil.NoSuchProcess:
                     # sometimes a subprocess descendant will have terminated between the time
                     # we obtain a list of descendants, and the time we actually poll this
@@ -114,14 +124,21 @@ class ProcessTimer:
                     pass
             self.max_vms_memory = max(self.max_vms_memory, vms_memory)
             self.max_rss_memory = max(self.max_rss_memory, rss_memory)
+            
             if shared_memory is not None:
                 self.max_shared_memory = max(self.max_shared_memory, shared_memory)
             else:
                 self.max_shared_memory = None
+            
             if uss_memory is not None:
                 self.max_uss_memory = max(self.max_uss_memory, uss_memory)
             else:
                 self.max_uss_memory = None
+            
+            if pss_memory is not None:
+                self.max_pss_memory = max(self.max_pss_memory, pss_memory)
+            else:
+                self.max_pss_memory = None
 
         except psutil.NoSuchProcess:
             return self.check_execution_state()
@@ -213,6 +230,7 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
             print(f"Time taken: {time_taken}")
             print(f"max_vms_memory: {process_timer.max_vms_memory}")
             print(f"max_rss_memory: {process_timer.max_rss_memory}")
+            print(f"max_pss_memory: {process_timer.max_pss_memory}")
 
             if return_code != 0:
                 print(f"Running Experiment failed:")
@@ -222,7 +240,8 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
                                                                        process_timer.max_vms_memory,
                                                                        process_timer.max_rss_memory,
                                                                        process_timer.max_shared_memory,
-                                                                       process_timer.max_uss_memory)
+                                                                       process_timer.max_uss_memory,
+                                                                       process_timer.max_pss_memory)
 
                 if not continue_on_fail:
                     break
@@ -253,7 +272,8 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
                                                                      process_timer.max_vms_memory,
                                                                      process_timer.max_rss_memory,
                                                                      process_timer.max_shared_memory,
-                                                                     process_timer.max_uss_memory)
+                                                                     process_timer.max_uss_memory,
+                                                                     process_timer.max_pss_memory)
 
             results[project_path_str] = experiment_runs
 
