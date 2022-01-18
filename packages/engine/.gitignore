@@ -12,3 +12,9 @@ src/worker/runner/python/wrappers.c*
 *hash-orchestrator-*
 parts/
 output/
+
+nohup.out
+perf.data
+perf.data.old
+ssh_sync/
+test.svg
