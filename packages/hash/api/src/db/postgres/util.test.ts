@@ -1,16 +1,15 @@
 import { transaction } from "./util";
-import { ConnectionKind, PoolConnection, TransactionConnection } from "./types";
+import { PoolConnection, TransactionConnection } from "./types";
 
 describe("transaction flattening", () => {
   it("allows a single top-level transaction", async () => {
     const transactionsHandler = jest.fn().mockResolvedValue("ok");
     const transactionConn = {
-      ...({} as TransactionConnection),
+      ...({ type: "Transaction" } as TransactionConnection),
       transaction: jest.fn(),
     };
     const poolConn = {
-      ...({} as PoolConnection),
-      _tag: ConnectionKind.PoolConnection,
+      ...({ type: "Pool" } as PoolConnection),
       transaction: jest
         .fn()
         .mockImplementation((handler) => handler(transactionConn)),
@@ -34,12 +33,11 @@ describe("transaction flattening", () => {
   it("runs nested transaction handlers without nesting further", async () => {
     const transactionsHandler = jest.fn().mockResolvedValue("ok");
     const transactionConn = {
-      ...({} as TransactionConnection),
+      ...({ type: "Transaction" } as TransactionConnection),
       transaction: jest.fn(),
     };
     const poolConn = {
-      ...({} as PoolConnection),
-      _tag: ConnectionKind.PoolConnection,
+      ...({ type: "Pool" } as PoolConnection),
       transaction: jest
         .fn()
         .mockImplementation((handler) => handler(transactionConn)),
