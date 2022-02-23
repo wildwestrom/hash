@@ -1,7 +1,6 @@
 /**
  * Entrypoint of the Block Component.
  */
-// import { App } from "./App";
-import { App } from "./CustomReactWrapper";
+import { App } from "./App";
 
 export default App;
