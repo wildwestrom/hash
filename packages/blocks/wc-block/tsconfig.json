@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "experimentalDecorators": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "noEmit": true,
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowSyntheticDefaultImports": true,
+    "useDefineForClassFields": false
+  },
+  "include": ["./src/"],
+  "exclude": ["node_modules"]
+}
