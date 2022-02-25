@@ -5,15 +5,20 @@ import WebComponentClass from "./customElementDefinition";
 
 type CustomElement<T> = Partial<T & DOMAttributes<T> & { children: any }>;
 
+const blockTagName = "my-block";
+
 declare global {
+  interface HTMLElementTagNameMap {
+    [blockTagName]: WebComponentClass;
+  }
   namespace JSX {
     interface IntrinsicElements {
-      ["my-block"]: CustomElement<WebComponentClass>;
+      [blockTagName]: CustomElement<WebComponentClass>;
     }
   }
 }
 
-customElements.define("my-block", WebComponentClass);
+customElements.define(blockTagName, WebComponentClass);
 
 type AppProps = {
   name: string;
