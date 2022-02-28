@@ -1,3 +1,7 @@
+//! TODO: DOC - expand upon this description
+//! Code to visit different regions of shared memory This module is the *sole* source of truth for
+//! keeping track of Arrow continuation bytes.
+
 use std::ops::{Index, IndexMut};
 
 use super::{
@@ -7,8 +11,6 @@ use super::{
 };
 use crate::datastore::{arrow::util, prelude::*};
 
-// Code to visit different regions of shared memory This module is the *sole* source of truth for
-// keeping track of Arrow continuation bytes.
 pub(in crate::datastore) trait Visit<'mem: 'v, 'v> {
     fn ptr(&self) -> &MemoryPtr;
     fn markers(&self) -> &Markers;
@@ -92,7 +94,7 @@ pub(in crate::datastore) trait Visit<'mem: 'v, 'v> {
             && markers.data_offset() + markers.data_size() <= size;
 
         if !res {
-            log::warn!(
+            tracing::warn!(
                 "Invalid markers in shared buffer with id {}. Markers: {:?}, Shared buffer size: \
                  {}",
                 message,

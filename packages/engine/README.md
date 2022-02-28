@@ -1,15 +1,14 @@
-<!-- markdownlint-disable-next-line first-line-heading -->
 <p align="center">
   <img src="https://cdn-us1.hash.ai/assets/hengine-github-readme-header%402x.png">
 </p>
 <div align="center">
- <a href="https://github.com/hashintel/hash/blob/master/LICENSE.md"><img src="https://cdn-us1.hash.ai/assets/license-badge-sspl.svg" alt="Server Side Public License" /></a>
+ <a href="https://github.com/hashintel/hash/blob/main/packages/engine/LICENSE.md"><img src="https://cdn-us1.hash.ai/assets/license-badge-sspl.svg" alt="Server Side Public License" /></a>
  <a href="https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_engine"><img src="https://img.shields.io/discord/840573247803097118" alt="Join HASH on Discord" /></a>
 </div>
 
 # hEngine
 
-[HASH Engine](https://hash.ai/platform/engine?utm_medium=organic&utm_source=github_readme_engine) (or **hEngine**) is the computational simulation engine at the heart of [HASH](https://hash.ai/platform?utm_medium=organic&utm_source=github_readme_engine) published under the terms of the Server-Side Public License (based on GPLv3, and created by MongoDB). The version currently released here contains several notable differences to the hosted version powering [hCore](https://hash.ai/platform/core?utm_medium=organic&utm_source=github_readme_engine) and [hCloud](https://hash.ai/platform/cloud?utm_medium=organic&utm_source=github_readme_engine).
+[HASH Engine](https://hash.ai/platform/engine?utm_medium=organic&utm_source=github_readme_engine) (or **hEngine**) is the computational simulation engine at the heart of [HASH](https://hash.ai/platform?utm_medium=organic&utm_source=github_readme_engine), dual-licensed under the Server Side Public License and Elastic License, at your option. The public version available here is our experimental 'next-gen' engine whose architecture and performance characteristics differ significantly to the stable version powering [hCore](https://hash.ai/platform/core?utm_medium=organic&utm_source=github_readme_engine) and [hCloud](https://hash.ai/platform/cloud?utm_medium=organic&utm_source=github_readme_engine).
 
 ## Table of Contents
 
@@ -44,11 +43,11 @@
 
 ## Issue Tracking
 
-We use [GitHub Issues](https://github.com/hashintel/hash/issues) to help prioritize and track bugs and feature requests for HASH. This includes hEngine, as well as our **hCore** IDE, and the [**HASH.ai site**](https://hash.ai/platform/index?utm_medium=organic&utm_source=github_readme_engine). You can also report issues and get support on our public [Discord server](https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_engine). Please submit any issues you encounter.
+We use [GitHub Issues](https://github.com/hashintel/hash/issues) to help prioritize and track bugs and feature requests. This includes hEngine and our **hCore** IDE, as well as the [**HASH**](https://hash.ai/platform/hash?utm_medium=organic&utm_source=github_readme_engine) all-in-one workspace. You can also report issues and get support on our public [Discord server](https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_engine). Please submit any issues you encounter.
 
 ## Additional Documentation
 
-Our [simulation docs](https://hash.ai/docs/simulation?utm_medium=organic&utm_source=github_readme_engine) contain beginner guides and in-depth tutorials for **hCore** today.
+Our [user guide for simulation](https://hash.ai/docs/simulation?utm_medium=organic&utm_source=github_readme_engine) contains a beginner's introduction as well as in-depth tutorials for **hCore** today.
 
 The [HASH glossary](https://hash.ai/glossary?utm_medium=organic&utm_source=github_readme_engine) contains helpful explainers around key modeling, simulation and AI-related terms and concepts.
 
@@ -135,7 +134,7 @@ Due to ARM-Based Macs, the `macos` `target_os` has some added complications for 
 
 Due to limitations in Cargo at the moment we can't properly check if it's being built _on_ an ARM Mac (rather than _for_ an ARM Mac). Due to this it's necessary to:
 
-- _Disable_ the `hash_engine/build-nng` feature by passing `--no-default-features` to any cargo commands such as `cargo build`
+- _Disable_ the `hash_engine_lib/build-nng` feature by passing `--no-default-features` to any cargo commands such as `cargo build`
 
   At the moment the project only seems to be compiling if you use the `x86_64-apple-darwin` target. This has some added complexity, especially due to the fact that rustc fails to link 'fat-binaries' in certain scenarios.
 
@@ -204,7 +203,7 @@ In order to run the demo:
 
 <!-- markdownlint-enable ol-prefix -->
 
-After a short time, the simulation should complete and the process will end. Once this is done, an `./output` folder should have been created. Within that, a directory is created for each combination of [project/experiment_run/simulation_run]. For a deeper explanation of the output, please take a look at [Simulation Outputs](#simulation-outputs).
+After a short time, the simulation should complete and the process will end. Once this is done, an `./output` folder should have been created. Within that, a directory is created for each combination of [project/experiment_name/experiment_uuid/simulation_run]. For a deeper explanation of the output, please take a look at [Simulation Outputs](#simulation-outputs).
 
 The ageing simulation increases the age of each agent by one every step. Looking in the _json_state.json_ file, one can see the outputted JSON state has an `"age"` field for each agent. It should be apparent that the age is increasing with each snapshot of state.
 
@@ -338,11 +337,14 @@ If you haven't created and exported a project from [hCore], it's also possible t
 
 > **WIP** - This section is a work-in-progress. More in-depth documentation is in the works for describing all output formats and options. As such some functionality may not be mentioned here, and some functionality alluded to here might not be complete at present. Currently, the engine has two main form of outputs, one coming from the [json_state package](./src/simulation/package/output/packages/json_state) and the other from the [analysis package](./src/simulation/package/output/packages/analysis).
 
-At the end of each simulation run, various outputs appear within the `./<OUTPUT FOLDER>/<PROJECT NAME>/<EXPERIMENT ID>/<SIMULATION ID>` directories.
+At the end of each simulation run, various outputs appear within the `./<OUTPUT FOLDER>/<PROJECT NAME>/<EXPERIMENT NAME>/<EXPERIMENT ID>/<SIMULATION ID>` directories.
 
-Where `<EXPERIMENT ID>` and `<SIMULATION ID>` are unique identifiers created for each run of an experiment or simulation.
+Where:
 
-There are overrides ([CLI Arguments and Options](#cli-arguments-and-options)) for the defaults of the output folder and project name.
+- `<PROJECT NAME>` is the name of the folder containing your experiments
+- `<EXPERIMENT ID>` and `<SIMULATION ID>` are unique identifiers created for each run of an experiment or simulation.
+
+There is an override ([CLI Arguments and Options](#cli-arguments-and-options)) for the default of the output folder.
 
 #### JSON-State [`json_state.json`]
 
@@ -357,6 +359,10 @@ During the run, the output may be buffered into the `./parts` folder in multiple
 > **WIP** - This feature is currently unstable
 
 [hCore] currently provides functionality where simulations can apply custom analysis on user-defined metrics. The functionality has been ported across to this codebase in the [analysis package](./src/simulation/package/output/packages/analysis), however development is planned to stabilise it. As such, this functionality is neither tested, nor considered supported.
+
+### Logging
+
+The engine (and CLI) currently logs to both stderr, and to the `./log` directory. The latter is machine-parseable JSON-formatted structured logging, while the stderr logs are configurable through the command-line arguments of both binaries (see [CLI Arguments and Options](#cli-arguments-and-options)).
 
 ## Main Concepts
 

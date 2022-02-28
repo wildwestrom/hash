@@ -304,7 +304,7 @@ pub enum DistanceFunction {
 
 impl Default for DistanceFunction {
     fn default() -> Self {
-        Self::Conway
+        Self::Euclidean
     }
 }
 
@@ -469,7 +469,7 @@ impl Config {
             };
             // All keys from the topology object are consumed to check for remaining keys
             for (key, _) in topology_props {
-                log::warn!("Unused key in topology: \"{key}\"")
+                tracing::warn!("Unused key in topology: \"{key}\"")
             }
             Ok(config)
         } else {

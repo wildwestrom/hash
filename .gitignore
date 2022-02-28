@@ -29,6 +29,10 @@ bower_components
 # node-waf configuration
 .lock-wscript
 
+# Tests
+playwright-report/
+test-results/
+
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
 
@@ -54,8 +58,9 @@ typings/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
-.env
+# local environment variable files
+.env.local
+.env.*.local
 
 # macOS directory file
 .DS_Store
@@ -64,7 +69,8 @@ typings/
 .next
 
 # build files
-**/dist
+dist
+build
 
 # vscode config
 .vscode/settings.json
@@ -76,3 +82,13 @@ typings/
 **/__pycache__
 **/*.egg-info
 /packages/engine/benchmarking/.ipynb_checkpoints/
+
+# generated files
+**/*.gen.*
+**/*.tsbuildinfo
+
+# Sentry
+.sentryclirc
+
+# Application data
+/var

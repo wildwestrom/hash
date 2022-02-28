@@ -10,6 +10,7 @@ use tokio::sync::{
     mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
     oneshot::Receiver,
 };
+use tracing::Span;
 
 pub use super::{Error, Result};
 use crate::{
@@ -17,7 +18,10 @@ use crate::{
     proto::SimulationShortId,
     types::{TaskId, WorkerIndex},
     worker::{
-        runner::comms::{outbound::RunnerError, NewSimulationRun},
+        runner::comms::{
+            outbound::{PackageError, RunnerError, UserError, UserWarning},
+            NewSimulationRun,
+        },
         task::{WorkerTask, WorkerTaskResultOrCancelled},
     },
     workerpool::comms::terminate::TerminateMessage,
@@ -33,6 +37,7 @@ pub enum WorkerPoolToWorkerMsgPayload {
 
 #[derive(Debug)]
 pub struct WorkerPoolToWorkerMsg {
+    pub span: Span,
     pub sim_id: Option<SimulationShortId>,
     pub payload: WorkerPoolToWorkerMsgPayload,
 }
@@ -55,6 +60,7 @@ impl WorkerPoolToWorkerMsg {
         }?;
 
         Ok(WorkerPoolToWorkerMsg {
+            span: self.span.clone(),
             sim_id: self.sim_id,
             payload,
         })
@@ -64,6 +70,7 @@ impl WorkerPoolToWorkerMsg {
 impl WorkerPoolToWorkerMsg {
     pub fn sync(sim_id: SimulationShortId, sync_payload: SyncPayload) -> WorkerPoolToWorkerMsg {
         WorkerPoolToWorkerMsg {
+            span: Span::current(),
             sim_id: Some(sim_id),
             payload: WorkerPoolToWorkerMsgPayload::Sync(sync_payload),
         }
@@ -71,6 +78,7 @@ impl WorkerPoolToWorkerMsg {
 
     pub fn task(sim_id: SimulationShortId, task_payload: WorkerTask) -> WorkerPoolToWorkerMsg {
         WorkerPoolToWorkerMsg {
+            span: Span::current(),
             sim_id: Some(sim_id),
             payload: WorkerPoolToWorkerMsgPayload::Task(task_payload),
         }
@@ -78,6 +86,7 @@ impl WorkerPoolToWorkerMsg {
 
     pub fn cancel_task(task_id: TaskId) -> WorkerPoolToWorkerMsg {
         WorkerPoolToWorkerMsg {
+            span: Span::current(),
             sim_id: None,
             payload: WorkerPoolToWorkerMsgPayload::CancelTask(task_id),
         }
@@ -85,6 +94,7 @@ impl WorkerPoolToWorkerMsg {
 
     pub fn new_simulation_run(new_simulation_run: NewSimulationRun) -> WorkerPoolToWorkerMsg {
         WorkerPoolToWorkerMsg {
+            span: Span::current(),
             sim_id: Some(new_simulation_run.short_id),
             payload: WorkerPoolToWorkerMsgPayload::NewSimulationRun(new_simulation_run),
         }
@@ -97,6 +107,9 @@ pub enum WorkerToWorkerPoolMsg {
     RunnerErrors(Vec<RunnerError>),
     RunnerWarnings(Vec<RunnerError>),
     RunnerLogs(Vec<String>),
+    UserErrors(Vec<UserError>),
+    UserWarnings(Vec<UserWarning>),
+    PackageError(PackageError),
 }
 
 pub struct WorkerCommsWithWorkerPool {

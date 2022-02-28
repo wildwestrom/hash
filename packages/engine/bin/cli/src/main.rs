@@ -1,23 +1,15 @@
 #![allow(clippy::module_inception)]
 
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate tracing;
-
-pub mod experiment;
-pub mod exsrv;
-pub mod manifest;
-pub mod process;
-
-use std::path::PathBuf;
+use std::{
+    fmt::Debug,
+    path::PathBuf,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use clap::{AppSettings, Parser};
-use error::Result;
-use experiment::run_experiment;
-use hash_engine::utils::OutputFormat;
-
-use crate::exsrv::create_server;
+use error::{Result, ResultExt};
+use hash_engine_lib::proto::ExperimentName;
+use orchestrator::{Experiment, ExperimentConfig, Manifest, Server};
 
 /// Arguments passed to the CLI
 #[derive(Debug, Parser)]
@@ -29,29 +21,12 @@ pub struct Args {
     #[clap(short, long, env = "HASH_PROJECT")]
     project: PathBuf,
 
-    /// The Project Name.
-    ///
-    /// If not provided, the name of the project directory will be used.
-    #[clap(short = 'n', long)]
-    project_name: Option<String>,
-
-    /// Project output path folder.
-    ///
-    /// The folder will be created if it's missing.
-    #[clap(short, long, default_value = "./output", env = "HASH_OUTPUT")]
-    output: PathBuf,
-
-    /// Output format emitted to the terminal.
-    #[clap(long, default_value = "full", arg_enum, env = "HASH_EMIT")]
-    emit: OutputFormat,
+    #[clap(flatten)]
+    experiment_config: ExperimentConfig,
 
     /// Experiment type to be run.
     #[clap(subcommand)]
     r#type: ExperimentType,
-
-    /// Max number of parallel workers (must be power of 2).
-    #[clap(short = 'w', long, default_value = "4", env = "HASH_WORKERS")]
-    num_workers: u16,
 }
 
 /// Type of experiment to be run.
@@ -63,7 +38,22 @@ pub enum ExperimentType {
     /// Run a simple experiment.
     #[clap(name = "simple")]
     SimpleExperiment(SimpleExperimentArgs),
-    // Generate shell completitions
+    // Generate shell completions
+}
+
+impl From<ExperimentType> for orchestrator::ExperimentType {
+    fn from(t: ExperimentType) -> Self {
+        match t {
+            ExperimentType::SimpleExperiment(simple) => orchestrator::ExperimentType::Simple {
+                name: simple.experiment_name,
+            },
+            ExperimentType::SingleRunExperiment(single) => {
+                orchestrator::ExperimentType::SingleRun {
+                    num_steps: single.num_steps,
+                }
+            }
+        }
+    }
 }
 
 /// Single Run Experiment.
@@ -79,25 +69,43 @@ pub struct SingleExperimentArgs {
 pub struct SimpleExperimentArgs {
     /// Name of the experiment to be run.
     #[clap(short = 'n', long, env = "HASH_EXPERIMENT")]
-    experiment_name: String,
+    experiment_name: ExperimentName,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-    hash_engine::init_logger(args.emit);
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
 
-    let nng_listen_url = {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis();
-        format!("ipc://hash-orchestrator-{}", now)
-    };
+    let _guard = hash_engine_lib::init_logger(
+        args.experiment_config.log_format,
+        &args.experiment_config.output_location,
+        args.experiment_config.log_folder.clone(),
+        args.experiment_config.log_level,
+        &format!("cli-{now}"),
+        &format!("cli-{now}-texray"),
+    )
+    .wrap_err("Failed to initialise the logger")?;
 
-    let (mut experiment_server, handler) = create_server(&nng_listen_url)?;
+    let nng_listen_url = format!("ipc://hash-orchestrator-{now}");
+
+    let (mut experiment_server, handler) = Server::create(nng_listen_url);
     tokio::spawn(async move { experiment_server.run().await });
-    run_experiment(args, handler).await?;
-    Ok(())
+
+    let absolute_project_path = args
+        .project
+        .canonicalize()
+        .wrap_err_lazy(|| format!("Could not canonicalize project path: {:?}", args.project))?;
+    let manifest = Manifest::from_local(&absolute_project_path)
+        .wrap_err_lazy(|| format!("Could not read local project {absolute_project_path:?}"))?;
+    let experiment_run = manifest
+        .read(args.r#type.into())
+        .wrap_err("Could not read manifest")?;
+
+    let experiment = Experiment::new(args.experiment_config);
+
+    experiment.run(experiment_run, handler, None).await
 }

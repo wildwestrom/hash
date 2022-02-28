@@ -3,6 +3,7 @@ pub mod packages;
 use std::sync::Arc;
 
 pub use packages::{Name, StateTask, StateTaskMessage, PACKAGE_CREATORS};
+use tracing::Span;
 
 use super::{deps::Dependencies, ext_traits::GetWorkerSimStartMsg, prelude::*};
 pub use crate::config::Globals;
@@ -12,7 +13,6 @@ use crate::{
         batch::change::ArrayChange,
         error::Result as DatastoreResult,
         schema::{accessor::FieldSpecMapAccessor, RootFieldSpec, RootFieldSpecCreator},
-        table::state::ExState,
     },
     simulation::{
         comms::package::PackageComms, package::ext_traits::GetWorkerExpStartMsg, Error, Result,
@@ -22,7 +22,9 @@ use crate::{
 
 #[async_trait]
 pub trait Package: GetWorkerSimStartMsg + Send + Sync {
-    async fn run(&mut self, state: &mut ExState, context: &Context) -> Result<()>;
+    async fn run(&mut self, state: &mut State, context: &Context) -> Result<()>;
+
+    fn span(&self) -> Span;
 }
 
 pub trait PackageCreator: GetWorkerExpStartMsg + Send + Sync {

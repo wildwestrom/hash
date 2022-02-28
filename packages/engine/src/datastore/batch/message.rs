@@ -25,6 +25,7 @@ use crate::{
         UUID_V4_LEN,
     },
     hash_types::state::AgentStateField,
+    proto::ExperimentId,
 };
 
 // 1000 bytes per agent i.e. 10 MB for 10000 agents
@@ -36,7 +37,7 @@ const UPPER_MULTIPLIER: usize = 1000;
 /// Size of shared memory above which the soft upper bound is checked
 const LOWER_BOUND: usize = 10000;
 
-pub struct Batch {
+pub struct MessageBatch {
     pub(crate) memory: Memory,
     pub(crate) batch: RecordBatch,
     arrow_schema: Arc<ArrowSchema>,
@@ -46,7 +47,7 @@ pub struct Batch {
     metaversion: Metaversion,
 }
 
-impl BatchRepr for Batch {
+impl BatchRepr for MessageBatch {
     fn memory(&self) -> &Memory {
         &self.memory
     }
@@ -81,7 +82,7 @@ impl BatchRepr for Batch {
     }
 }
 
-impl ArrowBatch for Batch {
+impl ArrowBatch for MessageBatch {
     fn record_batch(&self) -> &RecordBatch {
         &self.batch
     }
@@ -91,7 +92,7 @@ impl ArrowBatch for Batch {
     }
 }
 
-impl DynamicBatch for Batch {
+impl DynamicBatch for MessageBatch {
     fn dynamic_meta(&self) -> &DynamicMeta {
         &self.dynamic_meta
     }
@@ -124,7 +125,7 @@ impl DynamicBatch for Batch {
     }
 }
 
-impl GrowableBatch<ArrayChange, Arc<array::ArrayData>> for Batch {
+impl GrowableBatch<ArrayChange, Arc<array::ArrayData>> for MessageBatch {
     fn take_changes(&mut self) -> Vec<ArrayChange> {
         std::mem::replace(&mut self.changes, Vec::with_capacity(3))
     }
@@ -150,9 +151,12 @@ impl GrowableBatch<ArrayChange, Arc<array::ArrayData>> for Batch {
     }
 }
 
-impl Batch {
+impl MessageBatch {
+    /// Clears the message column, resizing as necessary.
+    ///
+    /// Uses the passed in `agents` for the `AgentId`s and the group sizes.
     pub fn reset(&mut self, agents: &AgentBatch) -> Result<()> {
-        log::trace!("Resetting batch");
+        tracing::trace!("Resetting batch");
         let agent_count = agents.batch.num_rows();
         let column_name = AgentStateField::AgentId.name();
         let id_column = agents.get_arrow_column(column_name)?;
@@ -190,7 +194,7 @@ impl Batch {
         if cur_len < data_len && self.memory.set_data_length(data_len)?.resized() {
             // This shouldn't happen very often unless the bounds above are very inaccurate
             self.metaversion.increment();
-            log::info!(
+            tracing::info!(
                 "Unexpected message batch memory resize. Was {}, should have been at least {}",
                 cur_len,
                 data_len
@@ -209,14 +213,14 @@ impl Batch {
     }
 
     pub fn empty_from_agent_batch(
-        agents: &AgentBatch,
+        agent_batch: &AgentBatch,
         schema: &Arc<ArrowSchema>,
         meta: Arc<StaticMeta>,
-        experiment_run_id: &str,
-    ) -> Result<Batch> {
-        let agent_count = agents.batch.num_rows();
+        experiment_id: &ExperimentId,
+    ) -> Result<Self> {
+        let agent_count = agent_batch.batch.num_rows();
         let column_name = AgentStateField::AgentId.name();
-        let id_column = agents.get_arrow_column(column_name)?;
+        let id_column = agent_batch.get_arrow_column(column_name)?;
         let empty_message_column: Arc<dyn ArrowArray> =
             message::empty_messages_column(agent_count).map(Arc::new)?;
 
@@ -227,7 +231,7 @@ impl Batch {
 
         let (meta_buffer, data_len) = simulate_record_batch_to_bytes(&batch);
         let mut memory =
-            Memory::from_sizes(experiment_run_id, 0, 0, meta_buffer.len(), data_len, true)?;
+            Memory::from_sizes(experiment_id, 0, 0, meta_buffer.len(), data_len, true)?;
         memory.set_metadata(&meta_buffer)?;
 
         let data_buffer = memory.get_mut_data_buffer()?;
@@ -235,27 +239,28 @@ impl Batch {
         Self::from_memory(memory, schema.clone(), meta)
     }
 
+    // TODO: UNUSED: Needs triage
     pub fn empty(
         agents: &[&AgentState],
         schema: &Arc<ArrowSchema>,
         meta: Arc<StaticMeta>,
-        experiment_run_id: &str,
-    ) -> Result<Batch> {
+        experiment_id: &ExperimentId,
+    ) -> Result<Self> {
         let arrow_batch = agents.into_empty_message_batch(schema)?;
-        Self::from_record_batch(&arrow_batch, schema.clone(), meta, experiment_run_id)
+        Self::from_record_batch(&arrow_batch, schema.clone(), meta, experiment_id)
     }
 
     pub fn from_agent_states<K: IntoRecordBatch>(
         agents: K,
         schema: &Arc<MessageSchema>,
-        experiment_run_id: &str,
-    ) -> Result<Batch> {
+        experiment_id: &ExperimentId,
+    ) -> Result<Self> {
         let arrow_batch = agents.into_message_batch(&schema.arrow)?;
         Self::from_record_batch(
             &arrow_batch,
             schema.arrow.clone(),
             schema.static_meta.clone(),
-            experiment_run_id,
+            experiment_id,
         )
     }
 
@@ -263,12 +268,12 @@ impl Batch {
         record_batch: &RecordBatch,
         schema: Arc<ArrowSchema>,
         meta: Arc<StaticMeta>,
-        experiment_run_id: &str,
-    ) -> Result<Batch> {
+        experiment_id: &ExperimentId,
+    ) -> Result<Self> {
         let (meta_buffer, data_buffer) = record_batch_to_bytes(record_batch);
 
         let memory = Memory::from_batch_buffers(
-            experiment_run_id,
+            experiment_id,
             &[],
             &[],
             meta_buffer.as_ref(),
@@ -282,7 +287,7 @@ impl Batch {
         memory: Memory,
         schema: Arc<ArrowSchema>,
         static_meta: Arc<StaticMeta>,
-    ) -> Result<Batch> {
+    ) -> Result<Self> {
         let (_, _, meta_buffer, data_buffer) = memory.get_batch_buffers()?;
 
         let batch_message = arrow_ipc::get_root_as_message(meta_buffer)
@@ -297,7 +302,7 @@ impl Batch {
             Err(e) => return Err(Error::from(e)),
         };
 
-        Ok(Batch {
+        Ok(Self {
             memory,
             batch,
             metaversion: Metaversion::default(),
@@ -313,12 +318,15 @@ impl Batch {
 pub struct Raw<'a> {
     pub from: &'a [u8; UUID_V4_LEN],
     pub to: Vec<&'a str>,
+    // TODO: UNUSED: Needs triage
     pub r#type: &'a str,
+    // TODO: UNUSED: Needs triage
     pub data: &'a str,
 }
 
 // Iterators and getters
-impl Batch {
+impl MessageBatch {
+    // TODO: UNUSED: Needs triage
     pub fn get_native_messages(&self) -> Result<Vec<Vec<OutboundMessage>>> {
         let reference = self
             .batch
@@ -354,6 +362,7 @@ impl Batch {
         }
     }
 
+    // TODO: UNUSED: Needs triage
     pub fn message_index_iter(&self, i: usize) -> impl Iterator<Item = MessageIndex> {
         let num_agents = self.batch.num_rows();
         let group_index = i as u32;
@@ -429,6 +438,7 @@ impl Batch {
         })
     }
 
+    // TODO: UNUSED: Needs triage
     pub fn message_recipients_iter(&self) -> impl Iterator<Item = Vec<&str>> {
         let num_agents = self.batch.num_rows();
         let (bufs, to) = self.get_message_field(message::FieldIndex::To);

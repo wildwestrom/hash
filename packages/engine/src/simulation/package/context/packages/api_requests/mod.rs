@@ -8,6 +8,7 @@ use futures::{stream::FuturesOrdered, StreamExt};
 pub use handlers::CustomApiMessageError;
 use response::{ApiResponseMap, ApiResponses};
 use serde_json::Value;
+use tracing::{Instrument, Span};
 
 use super::super::*;
 use crate::{
@@ -15,11 +16,11 @@ use crate::{
     datastore::{
         batch::iterators,
         schema::{accessor::GetFieldSpec, FieldKey},
-        table::state::ReadState,
+        table::pool::BatchPool,
     },
     simulation::{
         comms::package::PackageComms,
-        package::context::packages::api_requests::fields::API_RESPONSES_FIELD_NAME,
+        package::context::{packages::api_requests::fields::API_RESPONSES_FIELD_NAME, Package},
     },
 };
 
@@ -39,7 +40,7 @@ impl PackageCreator for Creator {
         _state_field_spec_accessor: FieldSpecMapAccessor,
         context_field_spec_accessor: FieldSpecMapAccessor,
     ) -> Result<Box<dyn ContextPackage>> {
-        let custom_message_handlers = custom_message_handlers_from_properties(&config.sim.globals)?;
+        let custom_message_handlers = custom_message_handlers_from_globals(&config.sim.globals)?;
         Ok(Box::new(ApiRequests {
             custom_message_handlers,
             context_field_spec_accessor,
@@ -85,38 +86,26 @@ impl GetWorkerSimStartMsg for ApiRequests {
 impl Package for ApiRequests {
     async fn run<'s>(
         &mut self,
-        state: Arc<State>,
+        state_proxy: StateReadProxy,
         snapshot: Arc<StateSnapshot>,
     ) -> Result<Vec<ContextColumn>> {
+        // We want to pass the span for the package to the writer, so that the write() call isn't
+        // nested under the run span
+        let pkg_span = Span::current();
+        let run_span = tracing::trace_span!("run"); // store an un-entered span for the async
+
         let mut api_response_maps = if let Some(ref handlers) = self.custom_message_handlers {
-            let mut futs = FuturesOrdered::new();
-            {
-                let message_pool = snapshot.message_pool();
-                let message_pool_read = message_pool
-                    .read()
-                    .map_err(|e| Error::from(e.to_string()))?;
-                let reader = message_pool_read.get_reader();
-
-                handlers.iter().try_for_each::<_, Result<()>>(|handler| {
-                    let messages = snapshot.message_map().get_msg_refs(handler);
-                    if !messages.is_empty() {
-                        let messages = handlers::gather_requests(&reader, messages)?;
-                        futs.push(handlers::run_custom_message_handler(handler, messages))
-                    }
-                    Ok(())
-                })?;
-            }
-
-            futs.collect::<Vec<Result<ApiResponseMap>>>()
+            build_api_response_maps(&snapshot, handlers)
+                .instrument(run_span.clone())
                 .await
-                .into_iter()
-                .collect::<Result<_>>()
         } else {
             Ok(vec![])
         }?;
 
-        let agent_pool = state.agent_pool();
-        let batches = agent_pool.read_batches()?;
+        let _entered = run_span.entered(); // The rest of this is sync so this is fine
+
+        let agent_pool = state_proxy.agent_pool();
+        let batches = agent_pool.batches();
         let responses_per_agent = iterators::agent::agent_id_iter(&batches)?
             .map(move |agent_id| {
                 let mut ext_responses = vec![];
@@ -136,6 +125,7 @@ impl Package for ApiRequests {
         Ok(vec![ContextColumn {
             field_key,
             inner: Box::new(api_responses),
+            span: pkg_span,
         }])
     }
 
@@ -177,22 +167,49 @@ impl Package for ApiRequests {
             Arc::new(api_response_list_builder.finish()),
         )])
     }
+
+    fn span(&self) -> Span {
+        tracing::debug_span!("api_requests")
+    }
 }
 
-pub fn custom_message_handlers_from_properties(
-    properties: &Globals,
-) -> Result<Option<Vec<String>>> {
-    properties
+pub fn custom_message_handlers_from_globals(globals: &Globals) -> Result<Option<Vec<String>>> {
+    globals
         .get_cloned("messageHandlers")
         .map(|handlers| match handlers {
             serde_json::Value::Array(handlers) => handlers
                 .into_iter()
                 .map(|handler| match handler {
                     serde_json::Value::String(handler) => Ok(handler),
-                    _ => Err(Error::PropertiesParseError("messageHandlers".into())),
+                    _ => Err(Error::GlobalsParseError("messageHandlers".into())),
                 })
                 .collect::<Result<Vec<String>>>(),
-            _ => Err(Error::PropertiesParseError("messageHandlers".into())),
+            _ => Err(Error::GlobalsParseError("messageHandlers".into())),
         })
         .transpose()
+}
+
+async fn build_api_response_maps(
+    snapshot: &StateSnapshot,
+    handlers: &[String],
+) -> Result<Vec<ApiResponseMap>> {
+    let mut futs = FuturesOrdered::new();
+    {
+        let message_proxies = &snapshot.state.message_pool.read_proxies()?;
+        let reader = message_proxies.get_reader();
+
+        handlers.iter().try_for_each::<_, Result<()>>(|handler| {
+            let messages = snapshot.message_map.get_msg_refs(handler);
+            if !messages.is_empty() {
+                let messages = handlers::gather_requests(&reader, messages)?;
+                futs.push(handlers::run_custom_message_handler(handler, messages))
+            }
+            Ok(())
+        })?;
+    }
+
+    futs.collect::<Vec<Result<ApiResponseMap>>>()
+        .await
+        .into_iter()
+        .collect::<Result<_>>()
 }

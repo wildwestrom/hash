@@ -1,6 +1,6 @@
 {
   "default": true,
-
+  "first-line-heading": false,
   "line-length": false,
   "list-marker-space": { "ol_multi": 2, "ol_single": 2 },
   "no-alt-text": false,
@@ -10,5 +10,5 @@
   "no-inline-html": false,
   "no-trailing-punctuation": false,
   "ol-prefix": { "style": "one" },
-  "single-h1": false
+  "single-title": false
 }

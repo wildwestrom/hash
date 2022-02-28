@@ -28,9 +28,11 @@ impl SingleRunExperiment {
         mut pkg_to_exp: ExpPkgCtlSend,
         mut pkg_from_exp: ExpPkgUpdateRecv,
     ) -> Result<()> {
+        tracing::debug!("Calling run on single package");
         let msg = ExperimentControl::StartSim {
+            span_id: tracing::Span::current().id(),
             sim_id: 1 as SimulationShortId,
-            changed_properties: serde_json::Map::new().into(), // Don't change properties
+            changed_globals: serde_json::Map::new().into(), // Don't change globals
             max_num_steps: self.config.num_steps,
         };
         pkg_to_exp.send(msg).await?;
@@ -46,7 +48,7 @@ impl SingleRunExperiment {
                 break;
             }
         }
-        log::debug!("Experiment package exiting");
+        tracing::debug!("Experiment package exiting");
         Ok(())
     }
 }

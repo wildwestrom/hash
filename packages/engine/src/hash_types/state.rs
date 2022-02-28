@@ -23,44 +23,58 @@ pub type DatasetMap = serde_json::Map<String, serde_json::Value>;
 
 // NOTE: This is used in conjunction with the custom deserializaer
 // PLEASE UPDATE THIS LIST WHEN YOU ADD ANOTHER BUILT IN FIELD
+/// Built-in fields -- by default, these are automatically added to Agent State by the engine.
+///
+/// Also see [`AgentStateField`].
 pub const BUILTIN_FIELDS: [&str; 12] = [
-    "agent_id",
-    "agent_name",
-    "messages",
-    "position",
-    "direction",
-    "velocity",
-    "shape",
-    "height",
-    "scale",
-    "color",
-    "rgb",
-    "hidden",
+    AgentStateField::AgentId.name(),
+    AgentStateField::AgentName.name(),
+    AgentStateField::Messages.name(),
+    AgentStateField::Position.name(),
+    AgentStateField::Direction.name(),
+    AgentStateField::Velocity.name(),
+    AgentStateField::Shape.name(),
+    AgentStateField::Height.name(),
+    AgentStateField::Scale.name(),
+    AgentStateField::Color.name(),
+    AgentStateField::RGB.name(),
+    AgentStateField::Hidden.name(),
 ];
 
-/// TODO: DOC, reword below to be a docstring
-// We also have context -- for an Agent, this is the world around it.
-// Context is where we find things like neighbors, properties, and any data not stored in an agent
-// itself. Our agent runner tries hard to only give agents the context they need to execute, nothing
-// more. Context is immutable, although an agent can send messages to other agents as part of its
-// return value.
+/// The context is global, consistent data about the simulation at a single point in time, which is
+/// shared between all agents.
+///
+/// This struct is a specific Agent's view into the context. It contains information about the
+/// general simulation, rather than data belonging to specific agents. This is effectively what the
+/// agent 'can see', e.g. neighboring agents, incoming messages and globals. Due to it being a
+/// description of the current environment surrounding the agent, it's immutable (unlike an agent's
+/// specific state).
+///
+/// Language runners attempt to only give agents the context information they need to execute.
+/// All values accessed through context are read-only, and if modified, will not directly change
+/// the state of the simulation or any other agent.
 #[derive(Serialize, Debug)]
 pub struct Context<'a> {
-    pub properties: &'a Globals,
+    pub globals: &'a Globals,
     pub neighbors: Vec<&'a Agent>,
     pub messages: Vec<&'a message::Incoming>,
     pub datasets: &'a DatasetMap,
 }
 
-/// TODO: DOC
+/// `Agents` lie at the heart of _agent-based modeling_.
+///
+/// Every agent holds information describing itself. This collection of information is called the
+/// _state_ of an agent. Every field corresponds to an [`AgentStateField`].
 #[derive(Clone, Serialize, Debug, PartialEq)]
 pub struct Agent {
+    /// The unique identifier (UUIDv4) of an agent.
     #[serde(default = "generate_agent_id")]
     pub agent_id: String,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_name: Option<Name>,
 
+    /// Messages to be sent at the next step. (The Agent's "Outbox")
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub messages: Vec<message::Outbound>,
 
@@ -85,11 +99,14 @@ pub struct Agent {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub hidden: bool,
 
+    /// All fields that aren't built-in. Corresponds to [`AgentStateField::Extra`].
     #[serde(default, flatten)]
     pub custom: HashMap<String, serde_json::Value>,
 }
 
-/// TODO: DOC
+/// The possible fields in an agent's state.
+///
+/// It's used in `batch`es to determine the type of a field stored in the corresponding `batch`.
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub enum AgentStateField {
     AgentId,
@@ -105,6 +122,7 @@ pub enum AgentStateField {
     RGB,
     Hidden,
 
+    /// Any custom, non-built-in field. Corresponds to [`Agent::custom`].
     Extra(String),
 }
 
@@ -125,7 +143,7 @@ impl AgentStateField {
     ];
 
     #[must_use]
-    pub fn name(&self) -> &'static str {
+    pub const fn name(&self) -> &'static str {
         match self {
             AgentStateField::AgentId => "agent_id",
             AgentStateField::AgentName => "agent_name",
@@ -440,11 +458,13 @@ where
 
 impl Agent {
     /// `delete_custom` removes a custom field from the agent state entirely
+    // TODO: UNUSED: Needs triage
     pub fn delete_custom(&mut self, key: &str) {
         self.custom.remove(key);
     }
 
     /// `set_unchecked` is the same as set, but will panic if any erorrs occurs
+    // TODO: UNUSED: Needs triage
     pub fn set_unchecked<V>(&mut self, key: &str, value: V)
     where
         V: Serialize,
@@ -493,6 +513,7 @@ impl Agent {
 
     /// `get_custom` is a utility function to easily get typed objects from the 'custom' map
     /// for accessing properties decompiled into the struct, use the fields themselves
+    // TODO: UNUSED: Needs triage
     #[must_use]
     pub fn get_custom<T>(&self, key: &str) -> Option<T>
     where
@@ -533,6 +554,7 @@ impl Agent {
     /// # Errors
     /// `add_message` will return an error if the data provided is both required and an invalid JSON
     /// value.
+    // TODO: UNUSED: Needs triage
     pub fn add_message<T: StrVec>(
         &mut self,
         to: &T,
@@ -585,6 +607,7 @@ impl Agent {
     ///
     /// # Errors
     /// `get_pos` will fail if the agent does not have a position.
+    // TODO: UNUSED: Needs triage
     pub fn get_pos(&self) -> Result<&Vec3> {
         self.position
             .as_ref()
@@ -595,6 +618,7 @@ impl Agent {
     ///
     /// # Errors
     /// `get_pos` will fail if the agent does not have a position.
+    // TODO: UNUSED: Needs triage
     pub fn get_pos_mut(&mut self) -> Result<&mut Vec3> {
         let error: Error = format!("Agent {} does not have a position", &self.agent_id).into();
         self.position.as_mut().ok_or(error)
@@ -604,6 +628,7 @@ impl Agent {
     ///
     /// # Errors
     /// `get_pos` will fail if the agent does not have a direction.
+    // TODO: UNUSED: Needs triage
     pub fn get_dir(&self) -> Result<&Vec3> {
         self.direction
             .as_ref()
@@ -614,12 +639,14 @@ impl Agent {
     ///
     /// # Errors
     /// `get_pos` will fail if the agent does not have a direction.
+    // TODO: UNUSED: Needs triage
     pub fn get_dir_mut(&mut self) -> Result<&mut Vec3> {
         let error: Error = format!("Agent {} does not have a direction", self.agent_id).into();
         self.direction.as_mut().ok_or(error)
     }
 
     #[must_use]
+    // TODO: UNUSED: Needs triage
     pub fn working_copy(&self) -> Self {
         Agent {
             agent_id: self.agent_id.clone(),
@@ -644,6 +671,7 @@ impl Agent {
     }
 
     #[must_use]
+    // TODO: UNUSED: Needs triage
     pub fn child(&self) -> Self {
         Agent {
             // children get a new uuid
@@ -721,6 +749,7 @@ impl Agent {
     }
 
     #[must_use]
+    // TODO: UNUSED: Needs triage
     pub fn has(&self, key: &str) -> bool {
         for &builtin in &BUILTIN_FIELDS {
             if key == builtin {

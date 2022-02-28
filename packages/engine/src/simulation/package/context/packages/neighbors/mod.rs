@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 
 use async_trait::async_trait;
-use parking_lot::RwLockReadGuard;
 use serde_json::Value;
+use tracing::Span;
 
 use self::map::{NeighborMap, NeighborRef};
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
             context::ContextSchema,
             FieldKey, RootFieldSpec, RootFieldSpecCreator,
         },
-        table::state::{view::StateSnapshot, ReadState, State},
+        table::{proxy::StateReadProxy, state::view::StateSnapshot},
     },
     simulation::{
         comms::package::PackageComms,
@@ -96,9 +96,7 @@ struct Neighbors {
 }
 
 impl Neighbors {
-    fn neighbor_vec<'a>(
-        batches: &'a [RwLockReadGuard<'_, AgentBatch>],
-    ) -> Result<Vec<NeighborRef<'a>>> {
+    fn neighbor_vec<B: Deref<Target = AgentBatch>>(batches: &[B]) -> Result<Vec<NeighborRef<'_>>> {
         Ok(iterators::agent::position_iter(batches)?
             .zip(iterators::agent::index_iter(batches))
             .zip(iterators::agent::search_radius_iter(batches)?)
@@ -122,11 +120,16 @@ impl GetWorkerSimStartMsg for Neighbors {
 impl Package for Neighbors {
     async fn run<'s>(
         &mut self,
-        state: Arc<State>,
+        state_proxy: StateReadProxy,
         _snapshot: Arc<StateSnapshot>,
     ) -> Result<Vec<ContextColumn>> {
-        let agent_pool = state.agent_pool();
-        let batches = agent_pool.read_batches()?;
+        // We want to pass the span for the package to the writer, so that the write() call isn't
+        // nested under the run span
+        let pkg_span = Span::current();
+        let _run_entered = tracing::trace_span!("run").entered();
+
+        let agent_pool = state_proxy.agent_pool();
+        let batches = agent_pool.batches();
         let states = Self::neighbor_vec(&batches)?;
         let map = NeighborMap::gather(states, &self.topology)?;
 
@@ -138,6 +141,7 @@ impl Package for Neighbors {
         Ok(vec![ContextColumn {
             field_key,
             inner: Box::new(map),
+            span: pkg_span,
         }])
     }
 
@@ -161,5 +165,9 @@ impl Package for Neighbors {
             .to_key()?;
 
         Ok(vec![(field_key, Arc::new(neighbors_builder.finish()))])
+    }
+
+    fn span(&self) -> Span {
+        tracing::debug_span!("neighbors")
     }
 }

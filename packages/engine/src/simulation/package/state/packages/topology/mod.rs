@@ -3,7 +3,7 @@ use serde_json::Value;
 use super::super::*;
 use crate::{
     config::{ExperimentConfig, TopologyConfig},
-    datastore::table::state::WriteState,
+    datastore::table::pool::BatchPool,
 };
 
 mod adjacency;
@@ -77,16 +77,20 @@ impl GetWorkerSimStartMsg for Topology {
 
 #[async_trait]
 impl Package for Topology {
-    async fn run(&mut self, state: &mut ExState, _context: &Context) -> Result<()> {
-        log::trace!("Running Topology package");
+    async fn run(&mut self, state: &mut State, _context: &Context) -> Result<()> {
+        tracing::trace!("Running Topology package");
         if self.config.move_wrapped_agents {
-            for mut mut_table in state.agent_pool_mut().write_batches()? {
-                if self.topology_correction(&mut mut_table)? {
+            for agent_batch in state.agent_pool_mut().write_proxies()?.batches_iter_mut() {
+                if self.topology_correction(agent_batch)? {
                     // TODO: inplace changes and metaversioning should happen at a deeper level.
-                    mut_table.metaversion.increment_batch();
+                    agent_batch.metaversion.increment_batch();
                 }
             }
         }
         Ok(())
+    }
+
+    fn span(&self) -> Span {
+        tracing::debug_span!("topology")
     }
 }

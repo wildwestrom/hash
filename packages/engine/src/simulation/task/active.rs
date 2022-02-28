@@ -9,16 +9,39 @@ use crate::simulation::{
     Error, Result,
 };
 
+/// A sibling struct to a [`Task`] that is currently being executed to allow management of
+/// communication with, and tracking of, a [`Task`]'s status.
+///
+/// [`Task`]: crate::simulation::task::Task
 #[derive(derive_new::new)]
 pub struct ActiveTask {
+    /// Used by the owning Package to wait for results from the associated [`Task`].
+    ///
+    /// [`Task`]: crate::simulation::task::Task
     comms: ActiveTaskOwnerComms,
+    /// Marks whether or not the [`Task`] is still running.
+    ///
+    /// [`Task`]: crate::simulation::task::Task
     #[new(value = "true")]
     running: bool,
+    /// Marks whether or not the [`Task`] has been signaled to cancel.
+    ///
+    /// [`Task`]: crate::simulation::task::Task
     #[new(default)]
     cancel_sent: bool,
 }
 
 impl ActiveTask {
+    /// Waits for a [`TaskResultOrCancelled`] from the associated [`Task`] and returns the
+    /// [`TaskMessage`].
+    ///
+    /// # Errors
+    ///
+    /// - If the execution of [`Task`] failed and it wasn't able to receive a
+    /// [`TaskResultOrCancelled`].
+    /// - If the [`Task`] was cancelled during execution.
+    ///
+    /// [`Task`]: crate::simulation::task::Task
     pub async fn drive_to_completion(mut self) -> Result<TaskMessage> {
         if self.running {
             let recv = self
@@ -27,12 +50,12 @@ impl ActiveTask {
                 .take()
                 .ok_or_else(|| Error::from("Couldn't take result recv"))?;
             let result = recv.await?;
-            log::trace!("Got result from task: {:?}", result);
+            tracing::trace!("Got result from task: {:?}", result);
             self.running = false;
             match result {
                 TaskResultOrCancelled::Result(result) => Ok(result),
                 TaskResultOrCancelled::Cancelled => {
-                    log::warn!("Driving to completion yielded a cancel result");
+                    tracing::warn!("Driving to completion yielded a cancel result");
                     // TODO: create a variant for this error
                     Err(Error::from("Couldn't drive to completion, task cancelled"))
                 }
@@ -42,6 +65,7 @@ impl ActiveTask {
         }
     }
 
+    // TODO: UNUSED: Needs triage
     pub async fn cancel(mut self) -> Result<()> {
         if self.running && !self.cancel_sent {
             let cancel_send = self
@@ -60,11 +84,11 @@ impl ActiveTask {
                 .ok_or_else(|| Error::from("Couldn't take result recv"))?;
             let res = recv.await?;
             if matches!(res, TaskResultOrCancelled::Cancelled) {
-                log::warn!("Task was cancelled, but completed in the meanwhile");
+                tracing::warn!("Task was cancelled, but completed in the meanwhile");
             }
             self.running = false;
         } else if !self.running {
-            log::warn!("Tried to cancel task which was not running");
+            tracing::warn!("Tried to cancel task which was not running");
         }
         Ok(())
     }
@@ -79,17 +103,17 @@ impl Drop for ActiveTask {
     // whereby any access to datastore will be released.
     fn drop(&mut self) {
         if self.running {
-            log::warn!("Active task was not terminated. Cancelling.");
+            tracing::warn!("Active task was not terminated. Cancelling.");
             if !self.cancel_sent {
-                log::warn!("Sent cancel message");
+                tracing::warn!("Sent cancel message");
                 if let Some(cancel_send) = self.comms.cancel_send.take() {
                     // TODO: .expect()?
                     if cancel_send.send(CancelTask::new()).is_err() {
-                        log::error!("Can't cancel task")
+                        tracing::error!("Can't cancel task")
                     }
                     self.cancel_sent = true;
                 } else {
-                    log::warn!("Cancel not sent, but no `cancel_send`")
+                    tracing::warn!("Cancel not sent, but no `cancel_send`")
                 }
             }
             if let Some(result_recv) = self.comms.result_recv.take() {
@@ -100,10 +124,10 @@ impl Drop for ActiveTask {
                 ))
                 .is_err()
                 {
-                    log::warn!("Did not receive confirmation of task cancellation");
+                    tracing::warn!("Did not receive confirmation of task cancellation");
                 }
             } else {
-                log::warn!("Still running, but no `result_recv`");
+                tracing::warn!("Still running, but no `result_recv`");
             }
         }
     }

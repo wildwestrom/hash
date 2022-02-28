@@ -34,8 +34,9 @@ impl<'a> SimQueue<'a> {
                 stopped: false,
             });
             let msg = ExperimentControl::StartSim {
+                span_id: tracing::Span::current().id(),
                 sim_id,
-                changed_properties: changed_props.clone(),
+                changed_globals: changed_props.clone(),
                 max_num_steps: self.max_num_steps,
             };
             self.pkg_to_exp.send(msg).await?;
@@ -62,12 +63,12 @@ impl SimpleExperiment {
         mut exp_pkg_update_recv: ExpPkgUpdateRecv,
     ) -> Result<()> {
         let max_num_steps = self.config.num_steps;
-        let num_sims = self.config.changed_properties.len();
+        let num_sims = self.config.changed_globals.len();
         let max_sims_in_parallel = self.config.max_sims_in_parallel.unwrap_or(num_sims);
 
         let mut queued_iter =
             self.config
-                .changed_properties
+                .changed_globals
                 .iter()
                 .enumerate()
                 .map(|(sim_idx, props)| {
@@ -84,7 +85,7 @@ impl SimpleExperiment {
             finished: HashMap::new(),
         };
 
-        log::trace!("Starting {max_sims_in_parallel} sims in parallel");
+        tracing::trace!("Starting {max_sims_in_parallel} sims in parallel");
         for _ in 0..max_sims_in_parallel {
             sim_queue.start_sim_if_available().await?;
         }
@@ -99,7 +100,7 @@ impl SimpleExperiment {
             if response.was_error || response.stop_signal {
                 let mut sim_progress =
                     sim_queue.active.remove(&response.sim_id).ok_or_else(|| {
-                        log::warn!("Sim run with unknown id {} stopped", &response.sim_id);
+                        tracing::warn!("Sim run with unknown id {} stopped", &response.sim_id);
                         Error::MissingSimulationRun(response.sim_id)
                     })?;
 

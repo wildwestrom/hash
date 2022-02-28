@@ -31,11 +31,10 @@ use crate::{
     simulation::package::creator::PREVIOUS_INDEX_FIELD_KEY,
 };
 
-/// A Shared Batch. Contains a shared memory
-/// segment and the Arrow `RecordBatch` view
-/// into that data.
+/// A Shared Batch containing a shared memory segment and the Arrow [`RecordBatch`] view into that
+/// data.
 #[allow(clippy::module_name_repetitions)]
-pub struct Batch {
+pub struct AgentBatch {
     pub memory: Memory,
     /// Arrow `RecordBatch` with references to `self.memory`
     pub batch: RecordBatch,
@@ -56,7 +55,7 @@ pub struct Batch {
     pub affinity: usize,
 }
 
-impl BatchRepr for Batch {
+impl BatchRepr for AgentBatch {
     fn memory(&self) -> &Memory {
         &self.memory
     }
@@ -91,7 +90,7 @@ impl BatchRepr for Batch {
     }
 }
 
-impl ArrowBatch for Batch {
+impl ArrowBatch for AgentBatch {
     fn record_batch(&self) -> &RecordBatch {
         &self.batch
     }
@@ -101,7 +100,7 @@ impl ArrowBatch for Batch {
     }
 }
 
-impl DynamicBatch for Batch {
+impl DynamicBatch for AgentBatch {
     fn dynamic_meta(&self) -> &DynamicMeta {
         &self.dynamic_meta
     }
@@ -135,17 +134,17 @@ impl DynamicBatch for Batch {
 }
 
 /// Constructors for `Batch`
-impl Batch {
+impl AgentBatch {
     /// Get a shared batch from the `AgentState` format.
     /// Need to specify which behaviors the shared batch
     /// should be run on.
     pub fn from_agent_states<K: IntoRecordBatch>(
         agents: K,
         schema: &Arc<AgentSchema>,
-        experiment_run_id: &ExperimentId,
-    ) -> Result<Batch> {
+        experiment_id: &ExperimentId,
+    ) -> Result<Self> {
         let rb = agents.into_agent_batch(schema)?;
-        Batch::from_record_batch(&rb, schema, experiment_run_id)
+        Self::from_record_batch(&rb, schema, experiment_id)
     }
 
     pub fn set_dynamic_meta(&mut self, dynamic_meta: &DynamicMeta) -> Result<()> {
@@ -157,11 +156,11 @@ impl Batch {
     }
 
     pub fn duplicate_from(
-        batch: &Batch,
+        batch: &Self,
         schema: &AgentSchema,
-        experiment_run_id: &ExperimentId,
-    ) -> Result<Batch> {
-        let memory = Memory::duplicate_from(&batch.memory, experiment_run_id)?;
+        experiment_id: &ExperimentId,
+    ) -> Result<Self> {
+        let memory = Memory::duplicate_from(&batch.memory, experiment_id)?;
         Self::from_memory(memory, Some(schema), Some(batch.affinity))
     }
 
@@ -169,8 +168,8 @@ impl Batch {
     pub fn from_record_batch(
         record_batch: &RecordBatch,
         schema: &AgentSchema,
-        experiment_run_id: &ExperimentId,
-    ) -> Result<Batch> {
+        experiment_id: &ExperimentId,
+    ) -> Result<Self> {
         let schema_buffer = schema_to_bytes(&schema.arrow);
 
         let header_buffer = vec![]; // Nothing here
@@ -178,7 +177,7 @@ impl Batch {
         let (meta_buffer, data_len) = simulate_record_batch_to_bytes(record_batch);
 
         let mut memory = Memory::from_sizes(
-            experiment_run_id,
+            experiment_id,
             schema_buffer.len(),
             header_buffer.len(),
             meta_buffer.len(),
@@ -201,7 +200,7 @@ impl Batch {
         memory: Memory,
         schema: Option<&AgentSchema>,
         affinity: Option<usize>,
-    ) -> Result<Batch> {
+    ) -> Result<Self> {
         let (schema_buffer, _header_buffer, meta_buffer, data_buffer) =
             memory.get_batch_buffers()?;
         let (schema, static_meta) = if let Some(s) = schema {
@@ -228,7 +227,7 @@ impl Batch {
             Err(e) => return Err(Error::from(e)),
         };
 
-        Ok(Batch {
+        Ok(Self {
             memory,
             batch,
             dynamic_meta,
@@ -242,14 +241,14 @@ impl Batch {
     pub fn get_prepared_memory_for_data(
         schema: &Arc<AgentSchema>,
         dynamic_meta: &DynamicMeta,
-        experiment_run_id: &ExperimentId,
+        experiment_id: &ExperimentId,
     ) -> Result<Memory> {
         let schema_buffer = schema_to_bytes(&schema.arrow);
         let header_buffer = vec![];
         let meta_buffer = get_dynamic_meta_flatbuffers(dynamic_meta)?;
 
         let mut memory = Memory::from_sizes(
-            experiment_run_id,
+            experiment_id,
             schema_buffer.len(),
             header_buffer.len(),
             meta_buffer.len(),
@@ -277,7 +276,7 @@ impl Batch {
     }
 }
 
-impl GrowableBatch<ArrayChange, Arc<array::ArrayData>> for Batch {
+impl GrowableBatch<ArrayChange, Arc<array::ArrayData>> for AgentBatch {
     fn take_changes(&mut self) -> Vec<ArrayChange> {
         std::mem::take(&mut self.changes)
     }
@@ -303,9 +302,10 @@ impl GrowableBatch<ArrayChange, Arc<array::ArrayData>> for Batch {
     }
 }
 
-impl Batch {
+impl AgentBatch {
     /// This agent index column contains the indices of the agents *before* agent migration
     /// was performed. This is important so an agent can access its neighbor's outbox
+    // TODO: UNUSED: Needs triage
     pub fn write_agent_indices(&mut self, batch_index: usize) -> Result<()> {
         let batch_index = batch_index as u32;
 
@@ -333,10 +333,11 @@ impl Batch {
     }
 }
 
-impl Batch {
-    pub fn from_message(message: &str) -> Result<Box<Self>> {
-        let memory = Memory::from_message(message, true, true)?;
-        Ok(Box::new(Batch::from_memory(memory, None, None)?))
+impl AgentBatch {
+    // TODO: UNUSED: Needs triage
+    pub fn from_shmem_os_id(os_id: &str) -> Result<Box<Self>> {
+        let memory = Memory::shmem_os_id(os_id, true, true)?;
+        Ok(Box::new(Self::from_memory(memory, None, None)?))
     }
 
     pub fn set_affinity(&mut self, affinity: usize) {
@@ -358,7 +359,8 @@ impl Batch {
 }
 
 // Special-case columns getter and setters
-impl Batch {
+impl AgentBatch {
+    // TODO: UNUSED: Needs triage
     pub fn get_arrow_column_ref(&self, key: &FieldKey) -> Result<&ArrayRef> {
         self.get_arrow_column(key.value())
     }
@@ -413,6 +415,7 @@ impl Batch {
         self.str_iter(column_name)
     }
 
+    // TODO: UNUSED: Needs triage
     pub fn get_agent_name(&self) -> Result<Vec<Option<Cow<'_, str>>>> {
         let column_name = AgentStateField::AgentName.name();
         let row_count = self.batch.num_rows();
@@ -436,6 +439,7 @@ impl Batch {
         Ok(result)
     }
 
+    // TODO: UNUSED: Needs triage
     #[allow(clippy::option_if_let_else)]
     pub fn agent_name_as_array(&self, column: Vec<Option<Cow<'_, str>>>) -> Result<ArrayChange> {
         let column_name = AgentStateField::AgentName.name();
@@ -566,6 +570,7 @@ impl Batch {
         }))
     }
 
+    // TODO: UNUSED: Needs triage
     pub fn direction_iter(&self) -> Result<impl Iterator<Item = Option<&[f64; POSITION_DIM]>>> {
         let column_name = AgentStateField::Direction.name();
         let row_count = self.batch.num_rows();
@@ -688,7 +693,7 @@ impl Batch {
             a.map(|v| match serde_json::from_str(v) {
                 Ok(v) => v,
                 Err(_) => {
-                    log::warn!("Cannot deserialize value {}", v);
+                    tracing::warn!("Cannot deserialize value {}", v);
                     serde_json::Value::Null
                 }
             })
@@ -724,14 +729,14 @@ impl AgentList for RecordBatch {
     }
 }
 
-impl AgentList for Batch {
+impl AgentList for AgentBatch {
     fn record_batch(&self) -> &RecordBatch {
         &self.batch
     }
 }
 
-impl AsRef<Batch> for Batch {
-    fn as_ref(&self) -> &Batch {
+impl AsRef<AgentBatch> for AgentBatch {
+    fn as_ref(&self) -> &Self {
         self
     }
 }
@@ -775,6 +780,7 @@ mod tests {
     extern crate test;
 
     use test::Bencher;
+    use uuid::Uuid;
 
     use super::*;
     use crate::datastore::test_utils::gen_schema_and_test_agents;
@@ -783,10 +789,10 @@ mod tests {
     fn agent_batch_from_states(b: &mut Bencher) {
         let num_agents = 100;
         let (schema, agents) = gen_schema_and_test_agents(num_agents, 0).unwrap();
-
+        let experiment_id = Uuid::new_v4();
         b.iter(|| {
             let _agent_batch =
-                AgentBatch::from_agent_states(agents.as_slice(), &schema, &"".to_string()).unwrap();
+                AgentBatch::from_agent_states(agents.as_slice(), &schema, &experiment_id).unwrap();
         });
     }
 }

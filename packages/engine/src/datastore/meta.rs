@@ -122,6 +122,7 @@ impl Dynamic {
         }
     }
 
+    // TODO: UNUSED: Needs triage
     pub fn set_column_root_null_count(
         &mut self,
         static_meta: &Static,
@@ -210,6 +211,7 @@ pub enum BufferType {
     /// This buffer contains i32 offsets
     Offset,
     /// This buffer contains i64 offsets (currently not implemented)
+    // TODO: UNUSED: Needs triage
     LargeOffset,
     /// This buffer contains fixed-size (byte-level) data
     Data {
@@ -289,7 +291,7 @@ impl Static {
         for (i, col) in self.column_meta.iter().enumerate() {
             let node = &dynamic.nodes[col.node_start];
             if node.length != base_length {
-                log::warn!(
+                tracing::warn!(
                     "Column {} base node does not have required length, is {}, should be {}",
                     i,
                     node.length,
@@ -351,6 +353,7 @@ pub struct ColumnDynamicMetadataBuilder {
 }
 
 impl ColumnDynamicMetadataBuilder {
+    // TODO: UNUSED: Needs triage
     pub fn new() -> ColumnDynamicMetadataBuilder {
         Self::default()
     }

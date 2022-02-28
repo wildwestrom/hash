@@ -10,8 +10,9 @@ src/worker/runner/python/wrappers.c*
 *-topy*
 *-frompy*
 *hash-orchestrator-*
-parts/
-output/
+/parts
+/output
+/log
 
 nohup.out
 perf.data

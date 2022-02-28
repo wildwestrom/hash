@@ -86,7 +86,7 @@ const load_behaviors = (experiment, behavior_descs) => {
       )(hash_stdlib, hash_stdlib, console);
     } catch (e) {
       // Catch behavior code syntax errors and rethrow.
-      // Error.prepareStackTrace = prepare_user_trace; // TODO
+      Error.prepareStackTrace = prepare_user_trace;
       const trace = e.stack;
       trace.msg =
         "Couldn't load behavior (NAME " +
@@ -197,7 +197,11 @@ const run_task = (
       i_behavior < n_behaviors;
       ++i_behavior
     ) {
-      agent_state.behavior_index = i_behavior;
+      // TODO: reevaluate when other runners are implemented: If there are failing tests,
+      //   - either this has to be changed to `agent_state.behavior_index = i_behavior` and `AgentState.behaviorIndex()`
+      //     has to be adjusted to use `behavior_index` instead of `__i_behavior`, or
+      //   - `agent_state.behavior_index = i_behavior;` has to be added.
+      agent_state.__i_behavior = i_behavior;
 
       const key = behavior_ids.get(i_behavior);
       // We do this because it's shallow-loaded and the key is an Arrow Vec rather than a clean array
@@ -216,8 +220,9 @@ const run_task = (
       try {
         behavior.fn(agent_state, agent_ctx);
       } catch (e) {
-        // TODO expose/return user error properly
-        throw Error(behavior.name + "\n" + e.stack);
+        Error.prepareStackTrace = prepare_user_trace;
+        const trace = e.stack;
+        throw Error(JSON.stringify(trace));
       }
       postprocess(agent_state);
     }

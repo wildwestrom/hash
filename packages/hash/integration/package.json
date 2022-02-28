@@ -1,0 +1,55 @@
+{
+  "name": "@hashintel/hash-integration",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Integration tests for HASH",
+  "repository": {
+    "url": "https://github.com/hashintel/dev/packages/hash/integration",
+    "directory": "packages/hash/integration"
+  },
+  "license": "GPL-3.0",
+  "scripts": {
+    "codegen": "rimraf './src/**/*.gen.*'; graphql-codegen --config codegen.yml",
+    "fix:eslint": "eslint --ext .ts --fix ./src/",
+    "postinstall": "yarn codegen",
+    "lint:eslint": "eslint --ext .ts ./src/",
+    "lint:tsc": "tsc --noEmit",
+    "mock-data": "yarn codegen && ts-node src/mockData/index.ts",
+    "test": "jest --runInBand"
+  },
+  "dependencies": {
+    "@hashintel/hash-api": "0.0.0",
+    "@hashintel/hash-backend-utils": "0.0.0",
+    "execa": "5.1.1",
+    "graphql": "15.5.1",
+    "graphql-request": "3.4.0",
+    "graphql-tag": "2.12.5",
+    "graphql-type-json": "0.3.2",
+    "node-fetch": "^2.6.7",
+    "pg": "8.7.1"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "1.21.5",
+    "@graphql-codegen/introspection": "1.18.2",
+    "@graphql-codegen/typescript": "1.22.1",
+    "@graphql-codegen/typescript-graphql-request": "3.2.4",
+    "@graphql-codegen/typescript-resolvers": "1.19.2",
+    "@types/graphql-type-json": "0.3.2",
+    "@types/jest": "27.0.2",
+    "@types/prompts": "2.0.14",
+    "@typescript-eslint/eslint-plugin": "5.11.0",
+    "@typescript-eslint/parser": "5.11.0",
+    "eslint": "8.8.0",
+    "eslint-config-airbnb": "19.0.4",
+    "eslint-config-prettier": "8.3.0",
+    "eslint-plugin-import": "2.25.4",
+    "eslint-plugin-jest": "26.1.0",
+    "eslint-plugin-jsx-a11y": "6.5.1",
+    "eslint-plugin-react": "7.28.0",
+    "eslint-plugin-react-hooks": "4.3.0",
+    "jest": "27.1.1",
+    "rimraf": "^3.0.2",
+    "ts-jest": "27.0.5",
+    "typescript": "4.5.5"
+  }
+}

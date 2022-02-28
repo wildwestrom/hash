@@ -12,11 +12,15 @@ use crate::{
 };
 
 // Built in message types:
+// TODO: UNUSED: Needs triage
 pub const CREATE_AGENT: &str = OutboundCreateAgentPayload::KIND;
+// TODO: UNUSED: Needs triage
 pub const REMOVE_AGENT: &str = OutboundRemoveAgentPayload::KIND;
+// TODO: UNUSED: Needs triage
 pub const STOP_SIM: &str = OutboundStopSimPayload::KIND;
 
 // System-message recipient
+// TODO: UNUSED: Needs triage
 pub const SYSTEM_MESSAGE: &str = "hash";
 
 pub const MESSAGE_COLUMN_NAME: &str = "messages";
@@ -114,6 +118,7 @@ pub fn get_generic(to: &[&str], r#type: &str, data_string: &str) -> Result<Outbo
     }))
 }
 
+// TODO: UNUSED: Needs triage
 pub fn get_system(to: &[&str], r#type: &str, data_string: &str) -> Result<Outbound> {
     let to_clone = to.iter().map(|v| (*v).to_string()).collect();
 
@@ -322,7 +327,7 @@ pub fn get_column_from_list_array(array: &array::ListArray) -> Result<Vec<Vec<Ou
 }
 
 pub fn column_into_state(
-    states: &mut Vec<AgentState>,
+    states: &mut [AgentState],
     batch: &RecordBatch,
     index: usize,
 ) -> Result<()> {
@@ -342,6 +347,7 @@ pub fn column_into_state(
     Ok(())
 }
 
+// TODO: UNUSED: Needs triage
 pub fn get_messages_column_from_batch(batch: &RecordBatch) -> Result<Vec<Vec<Outbound>>> {
     let (index, _) = batch
         .schema()

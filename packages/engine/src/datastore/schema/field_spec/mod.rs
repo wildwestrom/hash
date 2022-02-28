@@ -283,7 +283,7 @@ impl FieldSpecMap {
                     ));
                 } else if let FieldSource::Package(_package_src) = &new_field.source {
                     if existing_field.source == FieldSource::Engine {
-                        log::warn!(
+                        tracing::warn!(
                             "Key clash when a package attempted to insert a new agent-scoped \
                              field with key: {:?}, the existing field was created by the engine, \
                              the new field will be ignored",
@@ -305,6 +305,7 @@ impl FieldSpecMap {
         }
     }
 
+    // TODO: UNUSED: Needs triage
     pub fn union(&mut self, set: FieldSpecMap) -> Result<()> {
         set.field_specs
             .into_iter()
@@ -504,5 +505,33 @@ pub mod tests {
             .unwrap();
 
         assert_eq!(field_spec_map.len(), 1);
+    }
+
+    #[test]
+    pub fn test_struct_types_enabled() -> Result<()> {
+        let mut keys = FieldSpecMap::default();
+        keys.add(RootFieldSpec {
+            inner: FieldSpec::new(
+                "struct".to_string(),
+                FieldType::new(
+                    FieldTypeVariant::Struct(vec![
+                        FieldSpec::new(
+                            "first_column".to_string(),
+                            FieldType::new(FieldTypeVariant::Number, false),
+                        ),
+                        FieldSpec::new(
+                            "second_column".to_string(),
+                            FieldType::new(FieldTypeVariant::Boolean, true),
+                        ),
+                    ]),
+                    true,
+                ),
+            ),
+            scope: FieldScope::Private,
+            source: FieldSource::Engine,
+        })?;
+
+        keys.get_arrow_schema()?;
+        Ok(())
     }
 }

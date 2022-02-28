@@ -1,21 +1,30 @@
-use std::sync::Arc;
+use std::{mem, sync::Arc};
+
+use tracing::Instrument;
 
 use super::{
-    command::CreateRemoveCommands, comms::Comms, package::run::Packages,
-    step_output::SimulationStepOutput, step_result::SimulationStepResult, Error, Result,
+    comms::Comms, package::run::Packages, step_output::SimulationStepOutput,
+    step_result::SimulationStepResult, Error, Result,
 };
 use crate::{
     config::SimRunConfig,
     datastore::{
         prelude::Store,
         table::{
-            context::ExContext,
-            pool::{agent::AgentPool, message::MessagePool},
+            context::Context,
+            pool::{agent::AgentPool, message::MessagePool, BatchPool},
             references::MessageMap,
-            state::{view::StateSnapshot, ExState, ReadState, WriteState},
+            state::{
+                view::{StatePools, StateSnapshot},
+                State,
+            },
         },
     },
-    simulation::agent_control::AgentControl,
+    proto::ExperimentRunTrait,
+    simulation::{
+        agent_control::AgentControl,
+        command::{Commands, StopCommand},
+    },
 };
 
 /// TODO: DOC
@@ -24,9 +33,16 @@ pub struct Engine {
     store: Store,
     comms: Arc<Comms>,
     config: Arc<SimRunConfig>,
+    stop_messages: Vec<StopCommand>,
 }
 
 impl Engine {
+    /// Creates a new simulation engine from a given collection of Packages, an uninitialized
+    /// store, a configuration for the simulation run, and a set of Comms to communicate with the
+    /// Worker Pool.
+    /// - Initializes Agent State through the init packages
+    /// - Creates an empty Context
+    /// - Initializes the Store using the Agent State and empty Context
     pub async fn new(
         mut packages: Packages,
         mut uninitialized_store: Store,
@@ -35,7 +51,12 @@ impl Engine {
     ) -> Result<Engine> {
         let comms = Arc::new(comms);
 
-        let state = packages.init.run(Arc::clone(&config.clone())).await?;
+        let state = packages
+            .init
+            .run(Arc::clone(&config.clone()))
+            .instrument(tracing::info_span!("init_packages"))
+            .await?;
+        tracing::trace!("Init packages completed, building empty context");
         let context = packages.step.empty_context(&config, state.num_agents())?;
         uninitialized_store.set(state, context);
         let store = uninitialized_store;
@@ -45,6 +66,7 @@ impl Engine {
             store,
             comms,
             config,
+            stop_messages: Vec::new(),
         })
     }
 
@@ -62,17 +84,28 @@ impl Engine {
     /// output packages are run only once, context and state packages
     /// can technically be run any number of times.
     pub async fn next(&mut self, current_step: usize) -> Result<SimulationStepResult> {
-        log::debug!("Running next step");
-        self.run_context_packages(current_step).await?;
-        self.run_state_packages().await?;
-        let output = self.run_output_packages().await?;
+        tracing::debug!("Running next step");
+        self.run_context_packages(current_step)
+            .instrument(tracing::info_span!("context_packages"))
+            .await?;
+        self.run_state_packages()
+            .instrument(tracing::info_span!("state_packages"))
+            .await?;
+        let output = self
+            .run_output_packages()
+            .instrument(tracing::info_span!("output_packages"))
+            .await?;
+        let agent_control = if !self.stop_messages.is_empty() {
+            AgentControl::Stop(mem::take(&mut self.stop_messages))
+        } else {
+            AgentControl::Continue
+        };
         let result = SimulationStepResult {
             sim_id: self.config.sim.id,
             output,
             errors: vec![],
             warnings: vec![],
-            agent_control: AgentControl::Continue, // TODO: OS - Need to pick up from messages
-            stop_signal: false,
+            agent_control,
         };
         Ok(result)
     }
@@ -92,11 +125,17 @@ impl Engine {
     /// dependent on each other, then all context packages are run in parallel
     /// and their outputs are merged into one Context object.
     async fn run_context_packages(&mut self, current_step: usize) -> Result<()> {
-        log::trace!("Starting run context packages stage");
+        tracing::trace!("Starting run context packages stage");
         // Need write access to state to prepare for context packages,
         // so can't start state sync (with workers) yet.
-        let (mut state, mut context) = self.store.take_upgraded()?;
-        let snapshot = self.prepare_for_context_packages(&mut state, &mut context)?;
+        let (mut state, mut context) = self.store.take()?;
+
+        let snapshot = {
+            let _span = tracing::debug_span!("prepare_context_packages").entered();
+            self.prepare_for_context_packages(&mut state, &mut context)?
+        };
+
+        let snapshot_state_proxy = snapshot.state.read()?;
 
         // Context packages use the snapshot and state packages use state.
         // Context packages will be ran before state packages, so start
@@ -104,32 +143,45 @@ impl Engine {
         // get the respective syncs done in parallel with packages.
 
         // Synchronize snapshot with workers
-        self.comms.state_snapshot_sync(&snapshot).await?;
+        self.comms
+            .state_snapshot_sync(snapshot_state_proxy.clone())
+            .instrument(tracing::info_span!("snapshot_sync"))
+            .await?;
 
-        // After this point, we'll only need read access to state until
-        // running the first state package. (Context packages don't have
-        // write access to state.)
-        let state = Arc::new(state.downgrade());
         // Synchronize state with workers
-        let active_sync = self.comms.state_sync(&state).await?;
-        // TODO: fix issues with getting write access to the message batch while state sync runs in
-        //  parallel with context packages
-        log::trace!("Waiting for active state sync");
-        active_sync.await?.map_err(Error::state_sync)?;
-        log::trace!("State sync finished");
+        async {
+            let active_sync = self.comms.state_sync(snapshot_state_proxy.clone()).await?;
+
+            // TODO: fix issues with getting write access to the message batch while state sync runs
+            //  in parallel with context packages
+            tracing::trace!("Waiting for active state sync");
+            active_sync.await?.map_err(Error::state_sync)?;
+            tracing::trace!("State sync finished");
+
+            Result::Ok(())
+        }
+        .instrument(tracing::info_span!("state_sync"))
+        .await?;
 
         let pre_context = context.into_pre_context();
         let context = self
             .packages
             .step
-            .run_context(state.clone(), snapshot, pre_context)
-            .await?
-            .downgrade();
+            .run_context(
+                &snapshot_state_proxy,
+                snapshot,
+                pre_context,
+                state.num_agents(),
+                state.sim_config(),
+            )
+            .instrument(tracing::info_span!("run_context_packages"))
+            .await?;
 
         // Synchronize context with workers. `context` won't change
         // again until the next step.
         self.comms
             .context_batch_sync(&context, current_step, state.group_start_indices())
+            .instrument(tracing::info_span!("context_sync"))
             .await?;
 
         // Note: the comment below is mostly invalid until state sync is fixed
@@ -146,20 +198,14 @@ impl Engine {
 
         // State sync finished, so the workers should have dropped
         // their `Arc`s with state by this point.
-        let state = Arc::try_unwrap(state)
-            .map_err(|_| Error::from("Unable to unwrap state after context package execution"))?;
         self.store.set(state, context);
         Ok(())
     }
 
     async fn run_state_packages(&mut self) -> Result<()> {
-        let (state, context) = self.store.take()?;
-        let state = self
-            .packages
-            .step
-            .run_state(state.upgrade(), &context)
-            .await?;
-        self.store.set(state.downgrade(), context);
+        let (mut state, context) = self.store.take()?;
+        self.packages.step.run_state(&mut state, &context).await?;
+        self.store.set(state, context);
         Ok(())
     }
 
@@ -168,11 +214,7 @@ impl Engine {
         let state = Arc::new(state);
         let context = Arc::new(context);
 
-        let output = self
-            .packages
-            .step
-            .run_output(state.clone(), context.clone())
-            .await?;
+        let output = self.packages.step.run_output(&state, &context).await?;
         let state = Arc::try_unwrap(state)
             .map_err(|_| Error::from("Unable to unwrap state after output package execution"))?;
         let context = Arc::try_unwrap(context)
@@ -199,29 +241,36 @@ impl Engine {
     /// One example of this happening is the Neighbors Context Package.
     fn prepare_for_context_packages(
         &mut self,
-        state: &mut ExState,
-        context: &mut ExContext,
+        state: &mut State,
+        context: &mut Context,
     ) -> Result<StateSnapshot> {
-        log::trace!("Preparing for context packages");
+        tracing::trace!("Preparing for context packages");
         let message_map = state.message_map()?;
-        self.add_remove_agents(state, &message_map)?;
+        self.handle_messages(state, &message_map)?;
         let message_pool = self.finalize_agent_messages(state, context)?;
         let agent_pool = self.finalize_agent_state(state, context)?;
-        Ok(StateSnapshot::new(agent_pool, message_pool, message_map))
+        let state_view = StatePools {
+            agent_pool,
+            message_pool,
+        };
+        Ok(StateSnapshot {
+            state: state_view,
+            message_map,
+        })
     }
 
-    /// Create and Remove agents
+    /// Handles messages from the agents
     ///
-    /// Operates based on the "create_agent" and "remove_agent"
-    /// messages sent to "hash" through agent inboxes. Also creates
-    /// and removes agents that have been requested by State packages.
-    fn add_remove_agents(&mut self, state: &mut ExState, message_map: &MessageMap) -> Result<()> {
-        let read = state.message_pool().read()?;
-        let mut commands = CreateRemoveCommands::from_hash_messages(message_map, read)?;
-        commands.merge(self.comms.take_create_remove_commands()?);
+    /// Operates based on the "create_agent", "remove_agent", and "stop" messages sent to "hash"
+    /// through agent inboxes. Also creates and removes agents that have been requested by State
+    /// packages.
+    fn handle_messages(&mut self, state: &mut State, message_map: &MessageMap) -> Result<()> {
+        let message_proxies = state.message_pool().read_proxies()?;
+        let mut commands = Commands::from_hash_messages(message_map, message_proxies)?;
+        commands.merge(self.comms.take_commands()?);
         commands.verify(&self.config.sim.store.agent_schema)?;
-
-        state.create_remove(commands, &self.config)?;
+        self.stop_messages = commands.stop;
+        state.create_remove(commands.create_remove, &self.config)?;
         Ok(())
     }
 
@@ -229,8 +278,8 @@ impl Engine {
     /// the old inbox dataframe and use it as the new outbox dataframe.
     fn finalize_agent_messages(
         &mut self,
-        state: &mut ExState,
-        context: &mut ExContext,
+        state: &mut State,
+        context: &mut Context,
     ) -> Result<MessagePool> {
         let message_pool = context.take_message_pool();
         let finalized_message_pool = state.reset_messages(message_pool, &self.config)?;
@@ -241,13 +290,13 @@ impl Engine {
     /// dataframe.
     fn finalize_agent_state(
         &mut self,
-        state: &mut ExState,
-        context: &mut ExContext,
+        state: &mut State,
+        context: &mut Context,
     ) -> Result<AgentPool> {
-        state.finalize_agent_pool(
-            context,
+        context.update_agent_snapshot(
+            state,
             &self.config.sim.store.agent_schema,
-            &self.config.exp.run_id,
+            &self.config.exp.run.base().id,
         )?;
         Ok(context.take_agent_pool())
     }

@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use analyzer::Analyzer;
 pub use output::{AnalysisOutput, AnalysisSingleOutput};
 use serde_json::Value;
@@ -7,7 +5,8 @@ use serde_json::Value;
 pub use self::config::AnalysisOutputConfig;
 pub use super::super::*;
 use crate::{
-    datastore::table::state::ReadState, experiment::SimPackageArgs, proto::ExperimentRunTrait,
+    datastore::table::pool::BatchPool, experiment::SimPackageArgs, proto::ExperimentRunTrait,
+    simulation::package::output::Package,
 };
 
 #[macro_use]
@@ -19,6 +18,7 @@ mod output;
 mod validation;
 mod value_iter;
 
+// TODO: UNUSED: Needs triage
 pub enum Task {}
 
 pub struct Creator {}
@@ -78,14 +78,18 @@ impl GetWorkerSimStartMsg for Analysis {
 impl Package for Analysis {
     async fn run(&mut self, state: Arc<State>, _context: Arc<Context>) -> Result<Output> {
         // TODO: use filtering to avoid exposing hidden values to users
-        let read = state.agent_pool().read_batches()?;
+        let agent_proxies = state.agent_pool().read_proxies()?;
         // TODO: propagate Deref trait bound through run
-        let dynamic_pool = read.iter().map(|v| v.deref()).collect::<Vec<_>>();
+        let dynamic_pool = agent_proxies.batches_iter().collect::<Vec<_>>();
         self.analyzer.run(&dynamic_pool, state.num_agents())?;
-        // TODO: why doesn't into work?
+
         Ok(Output::AnalysisOutput(
             self.analyzer.get_latest_output_set(),
         ))
+    }
+
+    fn span(&self) -> Span {
+        tracing::debug_span!("analysis")
     }
 }
 

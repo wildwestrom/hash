@@ -13,12 +13,11 @@
 use std::{cmp::Ordering, mem};
 
 extern crate flatbuffers;
-
 use self::flatbuffers::{EndianScalar, Follow};
 
 pub enum UserErrorOffset {}
-
 #[derive(Copy, Clone, PartialEq)]
+
 pub struct UserError<'a> {
     pub _tab: flatbuffers::Table<'a>,
 }
@@ -55,9 +54,10 @@ impl<'a> UserError<'a> {
     }
 
     #[inline]
-    pub fn msg(&self) -> Option<&'a str> {
+    pub fn msg(&self) -> &'a str {
         self._tab
             .get::<flatbuffers::ForwardsUOffset<&str>>(UserError::VT_MSG, None)
+            .unwrap()
     }
 }
 
@@ -69,28 +69,26 @@ impl flatbuffers::Verifiable for UserError<'_> {
     ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
         use self::flatbuffers::Verifiable;
         v.visit_table(pos)?
-            .visit_field::<flatbuffers::ForwardsUOffset<&str>>(&"msg", Self::VT_MSG, false)?
+            .visit_field::<flatbuffers::ForwardsUOffset<&str>>(&"msg", Self::VT_MSG, true)?
             .finish();
         Ok(())
     }
 }
-
 pub struct UserErrorArgs<'a> {
     pub msg: Option<flatbuffers::WIPOffset<&'a str>>,
 }
-
 impl<'a> Default for UserErrorArgs<'a> {
     #[inline]
     fn default() -> Self {
-        UserErrorArgs { msg: None }
+        UserErrorArgs {
+            msg: None, // required field
+        }
     }
 }
-
 pub struct UserErrorBuilder<'a: 'b, 'b> {
     fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a>,
     start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
 }
-
 impl<'a: 'b, 'b> UserErrorBuilder<'a, 'b> {
     #[inline]
     pub fn add_msg(&mut self, msg: flatbuffers::WIPOffset<&'b str>) {
@@ -110,6 +108,7 @@ impl<'a: 'b, 'b> UserErrorBuilder<'a, 'b> {
     #[inline]
     pub fn finish(self) -> flatbuffers::WIPOffset<UserError<'a>> {
         let o = self.fbb_.end_table(self.start_);
+        self.fbb_.required(o, UserError::VT_MSG, "msg");
         flatbuffers::WIPOffset::new(o.value())
     }
 }
@@ -121,7 +120,6 @@ impl std::fmt::Debug for UserError<'_> {
         ds.finish()
     }
 }
-
 #[inline]
 #[deprecated(since = "2.0.0", note = "Deprecated in favor of `root_as...` methods.")]
 pub fn get_root_as_user_error<'a>(buf: &'a [u8]) -> UserError<'a> {
@@ -144,7 +142,6 @@ pub fn get_size_prefixed_root_as_user_error<'a>(buf: &'a [u8]) -> UserError<'a> 
 pub fn root_as_user_error(buf: &[u8]) -> Result<UserError, flatbuffers::InvalidFlatbuffer> {
     flatbuffers::root::<UserError>(buf)
 }
-
 #[inline]
 /// Verifies that a buffer of bytes contains a size prefixed
 /// `UserError` and returns it.
@@ -157,7 +154,6 @@ pub fn size_prefixed_root_as_user_error(
 ) -> Result<UserError, flatbuffers::InvalidFlatbuffer> {
     flatbuffers::size_prefixed_root::<UserError>(buf)
 }
-
 #[inline]
 /// Verifies, with the given options, that a buffer of bytes
 /// contains a `UserError` and returns it.
@@ -171,7 +167,6 @@ pub fn root_as_user_error_with_opts<'b, 'o>(
 ) -> Result<UserError<'b>, flatbuffers::InvalidFlatbuffer> {
     flatbuffers::root_with_opts::<UserError<'b>>(opts, buf)
 }
-
 #[inline]
 /// Verifies, with the given verifier options, that a buffer of
 /// bytes contains a size prefixed `UserError` and returns
@@ -185,28 +180,20 @@ pub fn size_prefixed_root_as_user_error_with_opts<'b, 'o>(
 ) -> Result<UserError<'b>, flatbuffers::InvalidFlatbuffer> {
     flatbuffers::size_prefixed_root_with_opts::<UserError<'b>>(opts, buf)
 }
-
 #[inline]
 /// Assumes, without verification, that a buffer of bytes contains a UserError and returns it.
-///
 /// # Safety
-///
 /// Callers must trust the given bytes do indeed contain a valid `UserError`.
 pub unsafe fn root_as_user_error_unchecked(buf: &[u8]) -> UserError {
     flatbuffers::root_unchecked::<UserError>(buf)
 }
-
 #[inline]
 /// Assumes, without verification, that a buffer of bytes contains a size prefixed UserError and
-/// returns it.
-///
-/// # Safety
-///
+/// returns it. # Safety
 /// Callers must trust the given bytes do indeed contain a valid size prefixed `UserError`.
 pub unsafe fn size_prefixed_root_as_user_error_unchecked(buf: &[u8]) -> UserError {
     flatbuffers::size_prefixed_root_unchecked::<UserError>(buf)
 }
-
 #[inline]
 pub fn finish_user_error_buffer<'a, 'b>(
     fbb: &'b mut flatbuffers::FlatBufferBuilder<'a>,

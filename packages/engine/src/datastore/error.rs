@@ -39,11 +39,14 @@ pub enum Error {
     #[error("{0}")]
     Unique(String),
 
+    #[error("Couldn't acquire shared lock on object")]
+    ProxySharedLock,
+
+    #[error("Couldn't acquire exclusive lock on object")]
+    ProxyExclusiveLock,
+
     #[error("Special field missing in schema: {0}")]
     SpecialKeyMissing(String),
-
-    #[error("Table with simulation id {0} not found")]
-    TableNotFound(String),
 
     #[error("Arrow Error: {0}")]
     Arrow(#[from] ArrowError),
@@ -198,9 +201,6 @@ pub enum Error {
 
     #[error("{0}")]
     RwLock(String),
-
-    #[error("Table does not contain context")]
-    TableWithoutContext,
 
     #[error("Invalid utf-8: {0}")]
     FromUtf8Error(#[from] std::string::FromUtf8Error),

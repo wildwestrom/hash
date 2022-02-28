@@ -1,6 +1,7 @@
 use arrow::{datatypes::DataType, error::ArrowError};
 use thiserror::Error as ThisError;
 use tokio::sync::mpsc::error::SendError;
+use tracing::Span;
 
 use super::mini_v8 as mv8;
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
     simulation::package::id::PackageId,
     worker::runner::comms::{
         inbound::InboundToRunnerMsgPayload,
-        outbound::{OutboundFromRunnerMsg, RunnerError},
+        outbound::{OutboundFromRunnerMsg, PackageError, UserError},
     },
 };
 
@@ -40,7 +41,7 @@ pub enum Error {
     Eval(String, String), // First element is path/name.
 
     #[error("Error in package: {0}")]
-    Package(String),
+    Package(PackageError),
 
     #[error("Couldn't import package {0}: {1}")]
     PackageImport(String, String), // First element is path/name.
@@ -58,7 +59,7 @@ pub enum Error {
     TerminateMissingSimulationRun(SimulationShortId),
 
     #[error("User JavaScript errors: {0:?}")]
-    User(Vec<RunnerError>),
+    User(Vec<UserError>),
 
     #[error("Duplicate package (id, name): {0:?}, {1:?}")]
     DuplicatePackage(PackageId, String),
@@ -73,7 +74,7 @@ pub enum Error {
     UnknownTarget(String),
 
     #[error("Couldn't send inbound message to runner: {0}")]
-    InboundSend(#[from] SendError<(Option<SimulationShortId>, InboundToRunnerMsgPayload)>),
+    InboundSend(#[from] SendError<(Span, Option<SimulationShortId>, InboundToRunnerMsgPayload)>),
 
     #[error("Couldn't send outbound message from runner: {0}")]
     OutboundSend(#[from] SendError<OutboundFromRunnerMsg>),

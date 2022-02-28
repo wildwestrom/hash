@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use super::PackageCreator;
 use crate::{
+    datastore::table::task_shared_store::{SharedContext, SharedState},
     simulation::{
         enum_dispatch::*,
         package::{id::PackageIdGenerator, PackageMetadata, PackageType},
@@ -17,7 +18,6 @@ use crate::{
     },
     ExperimentConfig,
 };
-
 pub mod js_py;
 pub mod json;
 
@@ -40,11 +40,23 @@ impl std::fmt::Display for Name {
 }
 
 /// All init package tasks are registered in this enum
-#[enum_dispatch(WorkerHandler, WorkerPoolHandler, GetTaskArgs)]
+#[enum_dispatch(GetTaskName, WorkerHandler, WorkerPoolHandler, GetTaskArgs)]
 #[derive(Clone, Debug)]
 pub enum InitTask {
     JsInitTask,
     PyInitTask,
+}
+
+impl StoreAccessVerify for InitTask {
+    fn verify_store_access(&self, access: &TaskSharedStore) -> Result<()> {
+        let state = &access.state;
+        let context = access.context();
+        if matches!(state, SharedState::None) && matches!(context, SharedContext::None) {
+            Ok(())
+        } else {
+            Err(Error::access_not_allowed(state, context, "Init".into()))
+        }
+    }
 }
 
 /// All init package task messages are registered in this enum
@@ -63,7 +75,7 @@ impl PackageCreators {
         &self,
         experiment_config: &Arc<ExperimentConfig>,
     ) -> Result<()> {
-        log::debug!("Initializing Init Package Creators");
+        tracing::debug!("Initializing Init Package Creators");
         use Name::*;
         let mut m = HashMap::new();
         m.insert(Json, json::Creator::new(experiment_config)?);

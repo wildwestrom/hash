@@ -6,14 +6,14 @@ use crate::{
     datastore::{
         batch::ArrowBatch,
         schema::{HIDDEN_PREFIX, PRIVATE_PREFIX},
-        table::state::ReadState,
     },
     hash_types::Agent,
-    simulation::package::{name::PackageName, output},
+    simulation::package::{name::PackageName, output, output::Package},
 };
 
 mod config;
 
+// TODO: UNUSED: Needs triage
 pub enum Task {}
 
 pub struct Creator {}
@@ -75,11 +75,11 @@ impl GetWorkerSimStartMsg for JsonState {
 #[async_trait]
 impl Package for JsonState {
     async fn run(&mut self, state: Arc<State>, _context: Arc<Context>) -> Result<Output> {
+        let state = state.read()?;
         let agent_states: std::result::Result<Vec<_>, crate::datastore::error::Error> = state
             .agent_pool()
-            .read_batches()?
-            .into_iter()
-            .zip(state.message_pool().read_batches()?.into_iter())
+            .batches_iter()
+            .zip(state.message_pool().batches_iter())
             .map(|(agent_batch, message_batch)| {
                 (agent_batch.record_batch(), message_batch.record_batch())
                     .into_agent_states(Some(&self.sim_run_config.sim.store.agent_schema))
@@ -106,6 +106,10 @@ impl Package for JsonState {
         Ok(Output::JsonStateOutput(JsonStateOutput {
             inner: agent_states,
         }))
+    }
+
+    fn span(&self) -> Span {
+        tracing::debug_span!("json_state")
     }
 }
 
