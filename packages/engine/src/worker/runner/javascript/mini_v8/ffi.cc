@@ -390,9 +390,14 @@ const Interface* mv8_interface_new() {
   interface->allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
   v8::ResourceConstraints constraints;
   constraints.ConfigureDefaultsFromHeapSize(
-          50LL * 1000LL * 1000LL * 1000LL,        // Initially 50GB.
+          100LL * 1000LL * 1000LL * 1000LL,        // Initially 50GB.
           5000LL * 1000LL * 1000LL * 1000LL // Hard limit (per isolate) 5TB.
   );
+  constraints.set_max_young_generation_size_in_bytes(25LL * 1000LL * 1000LL * 1000LL);
+  constraints.set_max_old_generation_size_in_bytes (75LL * 1000LL * 1000LL * 1000LL);
+  constraints.set_initial_young_generation_size_in_bytes(20LL * 1000LL * 1000LL * 1000LL);
+  constraints.set_initial_old_generation_size_in_bytes(70LL * 1000LL * 1000LL * 1000LL);
+
   std::cout << "Initial Old Generation Size: " << constraints.initial_old_generation_size_in_bytes() << std::endl;
   std::cout << "Max Old Generation Size: " << constraints.max_old_generation_size_in_bytes() << std::endl;
   std::cout << "Max Young Generation Size: " << constraints.max_young_generation_size_in_bytes () << std::endl;
