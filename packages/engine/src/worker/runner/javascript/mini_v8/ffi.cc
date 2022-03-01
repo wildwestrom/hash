@@ -900,8 +900,6 @@ v8::Local<v8::ArrayBuffer> create_local_arraybuffer(
   //       V8's ArrayBuffer, so it has the same problem.)
   //       We'll need to cache backing stores somehow
   //       (or find some other workaround).
-  if (!arraybuffer->IsExternal())
-      arraybuffer->Externalize(arraybuffer->GetBackingStore());
   assert(arraybuffer->IsExternal());
   return arraybuffer;
 }
