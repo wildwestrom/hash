@@ -35,11 +35,11 @@ fn main() {
         .flag(&format!("-isystem{v8_include}"))
         .flag("-Wno-unused-result")
         .flag("-pthread")
-        .flag("-l dylib=stdc++")
         .flag(&format!("-L{v8_obj}"))
         .flag("-lv8_monolith")
         .flag("-std=c++14")
         .file("src/worker/runner/javascript/mini_v8/ffi.cc")
         .cpp(true)
+        .cpp_link_stdlib("stdc++")
         .compile("libmini-v8-ffi.a");
 }
