@@ -32,6 +32,7 @@ fn main() {
     }
 
     cc::Build::new()
+        .compiler("clang++")
         .flag(&format!("-isystem{v8_include}"))
         .flag("-Wno-unused-result")
         .flag("-pthread")
