@@ -900,8 +900,8 @@ v8::Local<v8::ArrayBuffer> create_local_arraybuffer(
   //       V8's ArrayBuffer, so it has the same problem.)
   //       We'll need to cache backing stores somehow
   //       (or find some other workaround).
-  if (!buffer->IsExternal())
-    buffer->Externalize(buffer->GetBackingStore());
+  if (!arraybuffer->IsExternal())
+      arraybuffer->Externalize(arraybuffer->GetBackingStore());
   assert(arraybuffer->IsExternal());
   return arraybuffer;
 }
@@ -976,9 +976,9 @@ DataFFI mv8_data_node_from_js(
     for (size_t i = 0; i < data.n_buffers; ++i) {
       const auto buffer_value = buffers->Get(context, (uint32_t)i).ToLocalChecked();
       const auto buffer = v8::Local<v8::ArrayBuffer>::Cast(buffer_value);
-      const auto contents = buffer->GetContents();
-      data.buffer_ptrs[i] = (const unsigned char*)contents.Data();
-      data.buffer_capacities[i] = contents.ByteLength();
+      const auto backing_store = buffer->GetBackingStore();
+      data.buffer_ptrs[i] = (const unsigned char*)backing_store.Data();
+      data.buffer_capacities[i] = backing_store.ByteLength();
     }
 
     const auto null_bits_key = v8::String::NewFromUtf8(
@@ -989,9 +989,9 @@ DataFFI mv8_data_node_from_js(
     ).ToLocalChecked();
     const auto null_bits_value = obj->Get(context, null_bits_key).ToLocalChecked();
     const auto null_bits = v8::Local<v8::ArrayBuffer>::Cast(null_bits_value);
-    const auto contents = null_bits->GetContents();
-    data.null_bits_ptr = (const unsigned char*)contents.Data();
-    data.null_bits_capacity = contents.ByteLength();
+    const auto backing_store = null_bits->GetBackingStore();
+    data.null_bits_ptr = (const unsigned char*)backing_store.Data();
+    data.null_bits_capacity = backing_store.ByteLength();
     return data;
   });
 }
