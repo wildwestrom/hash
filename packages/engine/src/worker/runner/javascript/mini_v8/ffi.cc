@@ -883,10 +883,15 @@ v8::Local<v8::ArrayBuffer> create_local_arraybuffer(
   unsigned char* mem,
   size_t n_bytes
 ) {
+  std::unique_ptr<v8::BackingStore> backing =
+          v8::ArrayBuffer::newBackingStore((void*)mem,
+                                           n_bytes,
+                                           [](void*, size_t, void*){},
+                                           nullptr);
   // `mem` memory will not be freed by the ArrayBuffer.
   // The ArrayBuffer must not be accessed in any way by
   // MiniV8 or Javascript after `mem` is freed.
-  auto arraybuffer = v8::ArrayBuffer::New(isolate, (void*)mem, n_bytes);
+  auto arraybuffer = v8::ArrayBuffer::New(isolate, std::move(backing));
   // TODO: Newer versions of V8 don't allow creating
   //       a new backing store with the same location
   //       as an existing one, even if the underlying
@@ -895,6 +900,8 @@ v8::Local<v8::ArrayBuffer> create_local_arraybuffer(
   //       V8's ArrayBuffer, so it has the same problem.)
   //       We'll need to cache backing stores somehow
   //       (or find some other workaround).
+  if (!buffer->IsExternal())
+    buffer->Externalize(buffer->GetBackingStore());
   assert(arraybuffer->IsExternal());
   return arraybuffer;
 }
