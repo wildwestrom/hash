@@ -58,9 +58,9 @@ default = ["build-nng"]
 build-nng = ["nng/build-nng"]
 texray = ["tracing-texray"]
 
-[lib]
-name = "hash_engine_lib"
-crate-type = ["lib", "cdylib"]
+# [lib]
+# name = "hash_engine_lib"
+# crate-type = ["lib", "cdylib"]
 
 [build-dependencies.cc]
 version = "1.0"

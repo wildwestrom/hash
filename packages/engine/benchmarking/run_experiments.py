@@ -4,6 +4,7 @@ import re
 import json
 import pprint
 import time
+from collections import defaultdict
 from enum import Enum
 from textwrap import dedent
 from pathlib import Path
@@ -30,7 +31,7 @@ def parse_duration(duration_string):
 def parse_texray(texray_output):
     texray_results = []
     texray_results = defaultdict(float)
-    for line in texray.splitlines():
+    for line in texray_output.splitlines():
         components = re.split(r'(?<!:)\s+', line.lstrip())
         if len(components) > 1:
             name, duration_string, _ = components
@@ -204,13 +205,14 @@ class ProcessTimer:
 
 def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_run_override: Path = None,
                     build_args: List[str] = [], cli_args: List[str] = [], continue_on_fail=False, texray=False):
+    texray_args = ['--features', 'texray'] if texray else []
+    
     # make sure it's built
-    build_cmd = ['cargo', 'build', '--release'] + build_args
+    build_cmd = ['cargo', 'build', '--release'] + build_args + texray_args
     build = subprocess.run(build_cmd)
     if build.returncode != 0:
         raise Exception(f"Cargo build failed, cmd: {build_cmd}")
     
-    texray_args = ['--features', 'texray'] if texray else []
     if cli_run_override:
         base_run_cmd = [str(cli_run_override), '-p']
     else:
@@ -285,14 +287,6 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
 
             else:
                 print(f"Running Experiment finished")
-                try:
-                    experiment_id_patt = re.compile(r'Running experiment (( |\S)*)', re.MULTILINE)
-                    experiment_id = experiment_id_patt.search(stderr).group(1)
-                except Exception as err:
-                    print(f"Couldn't extract ExperimentId for {run_cmd}: {err}")
-                    print(f"stdout: \n{stdout}")
-                    print(f"stderr: \n{stderr}")
-                    return
 
                 try:
                     output_dir_patt = re.compile(r'Making new output directory: (( |\S)*)', re.MULTILINE)
@@ -301,6 +295,14 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
                         raise Exception("No output paths were found")
                 except Exception as err:
                     print(f"Couldn't extract Output paths for {run_cmd}: {err}")
+                    print(f"stdout: \n{stdout}")
+                    print(f"stderr: \n{stderr}")
+                    return
+                
+                try:
+                    experiment_id = output_paths[0].parts[-2]
+                except Exception as err:
+                    print(f"Couldn't extract ExperimentId for {run_cmd}: {err}")
                     print(f"stdout: \n{stdout}")
                     print(f"stderr: \n{stderr}")
                     return
