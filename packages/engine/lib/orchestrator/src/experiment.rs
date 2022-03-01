@@ -233,10 +233,9 @@ impl Experiment {
 
         let map_iter = [(
             OUTPUT_PERSISTENCE_KEY.to_string(),
-            // json!(OutputPersistenceConfig::Local(LocalPersistenceConfig {
-            //     output_folder: self.config.output_folder.clone()
-            // })),
-            json!(OutputPersistenceConfig::None),
+            json!(OutputPersistenceConfig::Local(LocalPersistenceConfig {
+                output_folder: self.config.output_folder.clone()
+            })),
         )];
         // Now we can send the init message
         let init_message = proto::InitMessage {
