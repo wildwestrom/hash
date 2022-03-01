@@ -976,7 +976,7 @@ DataFFI mv8_data_node_from_js(
       const auto buffer = v8::Local<v8::ArrayBuffer>::Cast(buffer_value);
       const auto backing_store = buffer->GetBackingStore();
       data.buffer_ptrs[i] = (const unsigned char*)backing_store->Data();
-      data.buffer_capacities[i] = backing_store.ByteLength();
+      data.buffer_capacities[i] = backing_store->ByteLength();
     }
 
     const auto null_bits_key = v8::String::NewFromUtf8(
@@ -989,7 +989,7 @@ DataFFI mv8_data_node_from_js(
     const auto null_bits = v8::Local<v8::ArrayBuffer>::Cast(null_bits_value);
     const auto backing_store = null_bits->GetBackingStore();
     data.null_bits_ptr = (const unsigned char*)backing_store->Data();
-    data.null_bits_capacity = backing_store.ByteLength();
+    data.null_bits_capacity = backing_store->ByteLength();
     return data;
   });
 }
