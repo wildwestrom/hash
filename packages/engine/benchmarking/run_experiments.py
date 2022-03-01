@@ -11,6 +11,35 @@ from typing import List
 
 import psutil
 
+def parse_duration(duration_string):
+    # https://github.com/rcoh/tracing-texray/blob/165601d7f45193ba6ac7d77880a37e7b8c39ae67/src/lib.rs#L745
+    MULTIPLIERS = {
+        'ns': 1E-9,
+        'μs': 1E-6,
+        'ms': 1E-3,
+        's': 1,
+        'm': 60,
+    }
+    for (suffix, multiplier) in MULTIPLIERS.items():
+        if duration_string.endswith(suffix):
+            return int(duration_string.rstrip(suffix)) * multiplier
+    else:
+        raise Error(f"Unexpected suffix on duration: {duration_string}")
+
+
+def parse_texray(texray_output):
+    texray_results = []
+    texray_results = defaultdict(float)
+    for line in texray.splitlines():
+        components = re.split(r'(?<!:)\s+', line.lstrip())
+        if len(components) > 1:
+            name, duration_string, _ = components
+            duration = parse_duration(duration_string)
+            texray_results[name] += duration
+    
+    return texray_results
+
+        
 class Result(Enum):
     FAIL = 0,
     SUCCESS = 1
@@ -18,7 +47,8 @@ class Result(Enum):
 
 class CompletedExperiment:
     def __init__(self, res: Result, output_folders: List[Path], time_to_completion: float, max_vms_memory: float,
-                 max_rss_memory: float, max_shared_memory: float, max_uss_memory: float, max_pss_memory: float):
+                 max_rss_memory: float, max_shared_memory: float, max_uss_memory: float, max_pss_memory: float,
+                 texray_output: dict):
         self.res = res
         self.output_folders = output_folders
         self.time_to_completion = time_to_completion
@@ -27,12 +57,14 @@ class CompletedExperiment:
         self.max_shared_memory = max_shared_memory
         self.max_uss_memory = max_uss_memory
         self.max_pss_memory = max_pss_memory
+        self.texray_output = texray_output
 
     def __repr__(self):
         return f"CompletedExperiment(res: {self.res}, output_folders: {self.output_folders}, " + \
                f"time_to_completion: {self.time_to_completion}, max_vms_memory: {self.max_vms_memory}, " + \
                f"max_rss_memory: {self.max_rss_memory}, max_shared_memory: {self.max_shared_memory}, " + \
-               f"max_uss_memory: {self.max_uss_memory}, max_pss_memory: {self.max_pss_memory})"
+               f"max_uss_memory: {self.max_uss_memory}, max_pss_memory: {self.max_pss_memory}" + \
+               f"texray_output: {self.texray_output})"
 
     def __str__(self):
         return dedent(f"""
@@ -45,6 +77,8 @@ class CompletedExperiment:
             max_shared_memory: {self.max_shared_memory}
             max_uss_memory: {self.max_uss_memory}
             max_pss_memory: {self.max_pss_memory}
+            texray_output: {pprint.pprint(self.texray_output)}
+        )
         """)
 
 
@@ -169,17 +203,18 @@ class ProcessTimer:
 
 
 def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_run_override: Path = None,
-                    build_args: List[str] = [], cli_args: List[str] = [], continue_on_fail=False):
+                    build_args: List[str] = [], cli_args: List[str] = [], continue_on_fail=False, texray=False):
     # make sure it's built
     build_cmd = ['cargo', 'build', '--release'] + build_args
     build = subprocess.run(build_cmd)
     if build.returncode != 0:
         raise Exception(f"Cargo build failed, cmd: {build_cmd}")
-
+    
+    texray_args = ['--features', 'texray'] if texray else []
     if cli_run_override:
         base_run_cmd = [str(cli_run_override), '-p']
     else:
-        base_run_cmd = ['cargo', 'run', '--release', '--bin', 'cli', '--', '-p']
+        base_run_cmd = ['cargo', 'run', '--release', '--bin', 'cli'] + build_args + texray_args + [ '--', '-p']
 
     results = {}
     for project_path in project_paths:
@@ -241,7 +276,9 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
                                                                        process_timer.max_rss_memory,
                                                                        process_timer.max_shared_memory,
                                                                        process_timer.max_uss_memory,
-                                                                       process_timer.max_pss_memory)
+                                                                       process_timer.max_pss_memory,
+                                                                       None 
+                                                                      )
 
                 if not continue_on_fail:
                     break
@@ -267,13 +304,25 @@ def run_experiments(project_paths: List[Path], run_all_experiments: bool, cli_ru
                     print(f"stdout: \n{stdout}")
                     print(f"stderr: \n{stderr}")
                     return
-
+                
+                if texray:
+                    try:
+                        texray_location = f"./log/experiment-{experiment_id}-texray.txt"
+                        texray_results = parse_texray(Path(texray_location).read_text())
+                    except Exception as err:
+                        print(f"Couldn't extract texray output for {run_cmd}: {err}")
+                        return
+                else:
+                    texray_results = None
+                        
+    
                 experiment_runs[experiment_id] = CompletedExperiment(Result.SUCCESS, output_paths, time_taken,
                                                                      process_timer.max_vms_memory,
                                                                      process_timer.max_rss_memory,
                                                                      process_timer.max_shared_memory,
                                                                      process_timer.max_uss_memory,
-                                                                     process_timer.max_pss_memory)
+                                                                     process_timer.max_pss_memory,
+                                                                     texray_results)
 
             results[project_path_str] = experiment_runs
 
@@ -301,6 +350,10 @@ if __name__ == "__main__":
                         help=dedent(
                             """Whether or not to cargo build with default features"""
                         ))
+    parser.add_argument('--texray', action='store_true',
+                        help=dedent(
+                            """Whether or not to run with the texray feature"""
+                        ))
     parser.add_argument('cli_args', nargs="*", type=str, default=[],
                         help=dedent(
                             """A space-separated list of (quoted) arguments to pass to the engine. 
@@ -310,6 +363,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     sim_results = run_experiments(project_paths=args.project_paths, run_all_experiments=args.run_all_experiments,
                                   build_args=['--no-default-features'] if args.no_default_features else [],
-                                  cli_args=args.cli_args, cli_run_override=args.cli_bin)
+                                  cli_args=args.cli_args, cli_run_override=args.cli_bin, texray=args.texray)
 
     pprint.pprint(sim_results)
