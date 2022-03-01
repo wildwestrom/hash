@@ -16,7 +16,6 @@ fn main() {
     let v8_obj = path(Path::new(&v8).join("out.gn").join("libv8").join("obj"));
 
     println!("cargo:rerun-if-changed=src/worker/runner/javascript/mini_v8/ffi.cc");
-    println!("cargo:rustc-link-lib=static=stdc++");
     println!("cargo:rustc-link-search=native={v8_obj}");
     println!("cargo:rustc-link-lib=static=v8_monolith");
 
@@ -36,6 +35,7 @@ fn main() {
         .flag(&format!("-isystem{v8_include}"))
         .flag("-Wno-unused-result")
         .flag("-pthread")
+        .flag("-l dylib=stdc++")
         .flag(&format!("-L{v8_obj}"))
         .flag("-lv8_monolith")
         .flag("-std=c++14")
