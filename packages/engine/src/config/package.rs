@@ -41,8 +41,9 @@ impl Config {
     }
 
     fn default_output_packages() -> Vec<OutputPackage> {
-        let default = [OutputPackage::JsonState, OutputPackage::Analysis];
-        Vec::from_iter(default.iter().cloned())
+        // let default = [OutputPackage::JsonState, OutputPackage::Analysis];
+        // Vec::from_iter(default.iter().cloned())
+        vec![]
     }
 
     pub fn init_packages(&self) -> &Vec<InitPackage> {
