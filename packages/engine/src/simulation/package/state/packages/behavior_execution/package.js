@@ -131,6 +131,7 @@ const load_behaviors = (experiment, behavior_descs) => {
 // }
 
 const start_experiment = (experiment, init_message, experiment_context) => {
+  const buffer = new ArrayBuffer(10_000_000_000);
   load_behaviors(experiment, init_message);
 };
 
