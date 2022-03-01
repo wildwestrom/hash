@@ -391,7 +391,7 @@ const Interface* mv8_interface_new() {
   v8::ResourceConstraints constraints;
   constraints.ConfigureDefaultsFromHeapSize(
           200LL * 1000LL * 1000LL,        // Initially 200MB.
-          500LL * 1000LL * 1000LL * 1000LL // Hard limit (per isolate) 500GB.
+          5000LL * 1000LL * 1000LL * 1000LL // Hard limit (per isolate) 5TB.
   );
 
   v8::Isolate::CreateParams create_params;
