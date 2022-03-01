@@ -16,7 +16,8 @@ fn main() {
     let v8_obj = path(Path::new(&v8).join("out.gn").join("libv8").join("obj"));
 
     println!("cargo:rerun-if-changed=src/worker/runner/javascript/mini_v8/ffi.cc");
-    println!("cargo:rustc-link-search=native={v8_obj}",);
+    println!("cargo:rustc-link-lib=static=stdc++");
+    println!("cargo:rustc-link-search=native={v8_obj}");
     println!("cargo:rustc-link-lib=static=v8_monolith");
 
     if let Ok(host) = std::env::var("HOST") {
@@ -38,7 +39,6 @@ fn main() {
         .flag(&format!("-L{v8_obj}"))
         .flag("-lv8_monolith")
         .flag("-std=c++14")
-        .flag("-DV8_COMPRESS_POINTERS")
         .file("src/worker/runner/javascript/mini_v8/ffi.cc")
         .cpp(true)
         .compile("libmini-v8-ffi.a");
