@@ -884,7 +884,7 @@ v8::Local<v8::ArrayBuffer> create_local_arraybuffer(
   size_t n_bytes
 ) {
   std::unique_ptr<v8::BackingStore> backing =
-          v8::ArrayBuffer::newBackingStore((void*)mem,
+          v8::ArrayBuffer::NewBackingStore((void*)mem,
                                            n_bytes,
                                            [](void*, size_t, void*){},
                                            nullptr);
