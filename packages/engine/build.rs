@@ -37,7 +37,7 @@ fn main() {
         .flag("-pthread")
         .flag(&format!("-L{v8_obj}"))
         .flag("-lv8_monolith")
-        .cpp_link_stdlib("c++")
+        .cpp_set_stdlib("c++")
         .flag("-std=c++14")
         .file("src/worker/runner/javascript/mini_v8/ffi.cc")
         .cpp(true)
