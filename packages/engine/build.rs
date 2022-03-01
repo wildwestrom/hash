@@ -40,5 +40,6 @@ fn main() {
         .flag("-std=c++14")
         .file("src/worker/runner/javascript/mini_v8/ffi.cc")
         .cpp(true)
+        .cpp_link_stdlib("c++")
         .compile("libmini-v8-ffi.a");
 }
