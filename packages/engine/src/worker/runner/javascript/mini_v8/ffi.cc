@@ -388,8 +388,15 @@ const Interface* mv8_interface_new() {
   const auto interface = new Interface;
 
   interface->allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+  v8::ResourceConstraints constraints;
+  constraints.ConfigureDefaultsFromHeapSize(
+          200LL * 1000LL * 1000LL,        // Initially 200MB.
+          500LL * 1000LL * 1000LL * 1000LL // Hard limit (per isolate) 500GB.
+  );
+
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = interface->allocator;
+  create_params.constraints = constraints;
   interface->isolate = v8::Isolate::New(create_params);
 
   const v8::Isolate::Scope isolate_scope(interface->isolate);
