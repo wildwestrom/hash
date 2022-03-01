@@ -132,6 +132,8 @@ const load_behaviors = (experiment, behavior_descs) => {
 
 const start_experiment = (experiment, init_message, experiment_context) => {
   const buffer = new ArrayBuffer(10_000_000_000);
+  const view = new Uint8Array(buffer);
+  console.log(view[9_999_999_999]);
   load_behaviors(experiment, init_message);
 };
 
