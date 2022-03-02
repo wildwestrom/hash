@@ -34,6 +34,8 @@ fn main() {
     cc::Build::new()
         .compiler("clang++")
         .flag(&format!("-isystem{v8_include}"))
+        .flag("-isystem/usr/local/include/")
+        .flag("-L/usr/local/lib")
         .flag("-Wno-unused-result")
         .flag("-pthread")
         .flag(&format!("-L{v8_obj}"))
