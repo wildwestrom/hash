@@ -1,31 +1,34 @@
-use arrow::{array::ArrayData, buffer::Buffer};
+use std::sync::Arc;
+
+use arrow::{array, buffer::Buffer as ArrowBuffer};
 
 use super::flush::{GrowableArrayData, GrowableColumn};
 
-/// When a growable column is modified, the change is recorded in this format.
+/// When a growable column is modified, the change
+/// is recorded in this format
 pub struct ArrayChange {
-    pub array: ArrayData,
+    pub array: Arc<array::ArrayData>,
     /// Index of column
     pub index: usize,
 }
 
 impl ArrayChange {
-    pub fn new(array: ArrayData, index: usize) -> ArrayChange {
+    pub fn new(array: Arc<array::ArrayData>, index: usize) -> ArrayChange {
         ArrayChange { array, index }
     }
 }
 
-impl GrowableColumn<ArrayData> for ArrayChange {
+impl GrowableColumn<Arc<array::ArrayData>> for ArrayChange {
     fn get_column_index(&self) -> usize {
         self.index
     }
 
-    fn get_data(&self) -> &ArrayData {
+    fn get_data(&self) -> &Arc<array::ArrayData> {
         &self.array
     }
 }
 
-impl GrowableArrayData for ArrayData {
+impl GrowableArrayData for Arc<array::ArrayData> {
     fn _len(&self) -> usize {
         self.len()
     }
@@ -35,18 +38,18 @@ impl GrowableArrayData for ArrayData {
     }
 
     fn _null_buffer(&self) -> Option<&[u8]> {
-        self.null_buffer().map(Buffer::as_slice)
+        self.null_buffer().map(ArrowBuffer::data)
     }
 
     fn _get_buffer(&self, index: usize) -> &[u8] {
-        self.buffers()[index].as_slice()
-    }
-
-    fn _get_non_null_buffer_count(&self) -> usize {
-        self.buffers().len()
+        self.buffers()[index].data()
     }
 
     fn _child_data(&self) -> &[Self] {
         self.child_data()
+    }
+
+    fn _get_non_null_buffer_count(&self) -> usize {
+        self.buffers().len()
     }
 }

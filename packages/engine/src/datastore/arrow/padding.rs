@@ -124,9 +124,9 @@ pub fn maybe_new_dynamic_length(
 // prefetcher optimizations
 #[must_use]
 const fn pad_to_sys_align(len: usize) -> usize {
-    match len % arrow::alloc::ALIGNMENT {
+    match len % arrow::memory::ALIGNMENT {
         0 => 0,
-        v => arrow::alloc::ALIGNMENT - v,
+        v => arrow::memory::ALIGNMENT - v,
     }
 }
 

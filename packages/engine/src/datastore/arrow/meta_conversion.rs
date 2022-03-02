@@ -13,8 +13,8 @@ use arrow::ipc::{
     Buffer as BufferMessage, FieldNode as NodeMessage, MessageBuilder, MessageHeader,
     MetadataVersion, RecordBatch, RecordBatchBuilder,
 };
-use flatbuffers::FlatBufferBuilder;
 
+use super::util::FlatBufferWrapper;
 use crate::datastore::{
     error::Error,
     meta::{Buffer, BufferType, Column as ColumnMeta, NodeMapping},
@@ -42,10 +42,10 @@ pub enum SupportedArrowDataTypes {
 
     Time32(ArrowTimeUnit),
     Time64(ArrowTimeUnit),
-    Timestamp(ArrowTimeUnit, Option<String>),
+    Timestamp(ArrowTimeUnit, Option<Arc<String>>),
 
-    Date32,
-    Date64,
+    Date32(ArrowDateUnit),
+    Date64(ArrowDateUnit),
 
     Interval(ArrowIntervalUnit),
     Duration(ArrowTimeUnit),
@@ -82,21 +82,42 @@ impl TryFrom<ArrowDataType> for SupportedArrowDataTypes {
             ArrowDataType::Time64(elapsed) => Ok(Self::Time64(elapsed)),
             ArrowDataType::Timestamp(elapsed, time_zone) => Ok(Self::Timestamp(elapsed, time_zone)),
 
-            ArrowDataType::Date32 => Ok(Self::Date32),
-            ArrowDataType::Date64 => Ok(Self::Date64),
+            ArrowDataType::Date32(elapsed) => Ok(Self::Date32(elapsed)),
+            ArrowDataType::Date64(elapsed) => Ok(Self::Date64(elapsed)),
 
             ArrowDataType::Interval(interval) => Ok(Self::Interval(interval)),
             ArrowDataType::Duration(elapsed) => Ok(Self::Duration(elapsed)),
 
-            ArrowDataType::List(field) => Ok(Self::List(Box::new(Self::try_from(
-                field.data_type().clone(),
-            )?))),
-            ArrowDataType::FixedSizeList(field, size) => Ok(Self::FixedSizeList(
-                Box::new(Self::try_from(field.data_type().clone())?),
+            ArrowDataType::List(d_type) => Ok(Self::List(Box::new(Self::try_from(*d_type)?))),
+            ArrowDataType::FixedSizeList(d_type, size) => Ok(Self::FixedSizeList(
+                Box::new(Self::try_from(*d_type)?),
                 size,
             )),
             ArrowDataType::Struct(fields) => Ok(Self::Struct(fields)),
-            d_type => Err(Error::UnsupportedArrowDataType { d_type }),
+
+            ArrowDataType::Null => Err(Error::UnsupportedArrowDataType {
+                d_type: ArrowDataType::Null,
+            }),
+            ArrowDataType::Float16 => Err(Error::UnsupportedArrowDataType {
+                d_type: ArrowDataType::Float16,
+            }),
+            ArrowDataType::LargeUtf8 => Err(Error::UnsupportedArrowDataType {
+                d_type: ArrowDataType::LargeUtf8,
+            }),
+            ArrowDataType::LargeBinary => Err(Error::UnsupportedArrowDataType {
+                d_type: ArrowDataType::LargeBinary,
+            }),
+            ArrowDataType::LargeList(d_type) => Err(Error::UnsupportedArrowDataType {
+                d_type: ArrowDataType::LargeList(d_type),
+            }),
+            ArrowDataType::Union(fields) => Err(Error::UnsupportedArrowDataType {
+                d_type: ArrowDataType::Union(fields),
+            }),
+            ArrowDataType::Dictionary(key_type, value_type) => {
+                Err(Error::UnsupportedArrowDataType {
+                    d_type: ArrowDataType::Dictionary(key_type, value_type),
+                })
+            }
         }
     }
 }
@@ -161,9 +182,11 @@ impl HashDynamicMeta for RecordBatch<'_> {
 
 /// Computes the flat_buffers builder from the metadata, using this builder
 /// the metadata of a shared batch can be modified
-pub fn get_dynamic_meta_flatbuffers(meta: &DynamicMeta) -> Result<Vec<u8>> {
-    // TODO: OPTIM: Evaluate, if we want to return the flatbuffer instead to remove the slice-to-vec
-    //   conversion.
+pub fn get_dynamic_meta_flatbuffers<'a>(meta: &DynamicMeta) -> Result<FlatBufferWrapper<'a>> {
+    // The reason why we're returning `FlatBufferBuilder` is that we don't want to
+    // clone the buffer it owns and cannot return a reference, because otherwise
+    // it would get dropped here
+
     // Build Arrow Buffer and FieldNode messages
     let buffers: Vec<BufferMessage> = meta
         .buffers
@@ -176,7 +199,7 @@ pub fn get_dynamic_meta_flatbuffers(meta: &DynamicMeta) -> Result<Vec<u8>> {
         .map(|n| NodeMessage::new(n.length as i64, n.null_count as i64))
         .collect();
 
-    let mut fbb = FlatBufferBuilder::new();
+    let mut fbb = flatbuffers_arrow::FlatBufferBuilder::new();
 
     // Copied from `ipc.rs` from function `record_batch_to_bytes`
     // with some modifications:
@@ -201,9 +224,7 @@ pub fn get_dynamic_meta_flatbuffers(meta: &DynamicMeta) -> Result<Vec<u8>> {
     message.add_header(root);
     let root = message.finish();
     fbb.finish(root, None);
-    let finished_data = fbb.finished_data();
-
-    Ok(finished_data.to_vec())
+    Ok(fbb.into())
 }
 
 /// Column hierarchy is the mapping from column index to buffer and node indices.
@@ -384,17 +405,14 @@ pub fn data_type_to_metadata(
         D::Time64(_) => data_type_metadata(is_parent_growable, multiplier, 8),
         D::Timestamp(..) => data_type_metadata(is_parent_growable, multiplier, 8),
 
-        D::Date32 => data_type_metadata(is_parent_growable, multiplier, 4),
-        D::Date64 => data_type_metadata(is_parent_growable, multiplier, 8),
+        D::Date32(_) => data_type_metadata(is_parent_growable, multiplier, 4),
+        D::Date64(_) => data_type_metadata(is_parent_growable, multiplier, 8),
 
         D::Interval(arrow::datatypes::IntervalUnit::YearMonth) => {
             data_type_metadata(is_parent_growable, multiplier, 4)
         }
         D::Interval(arrow::datatypes::IntervalUnit::DayTime) => {
             data_type_metadata(is_parent_growable, multiplier, 8)
-        }
-        D::Interval(arrow::datatypes::IntervalUnit::MonthDayNano) => {
-            data_type_metadata(is_parent_growable, multiplier, 16)
         }
 
         D::Duration(_) => data_type_metadata(is_parent_growable, multiplier, 8),
@@ -467,7 +485,7 @@ pub mod tests {
 
     use arrow::{
         array::ArrayRef,
-        datatypes::{IntervalUnit, TimeUnit},
+        datatypes::{DateUnit, IntervalUnit, TimeUnit},
     };
 
     type D = ArrowDataType;
@@ -482,14 +500,14 @@ pub mod tests {
             .collect()
     }
 
-    fn get_num_nodes_from_array_data(data: &ArrowArrayData) -> usize {
+    fn get_num_nodes_from_array_data(data: &Arc<ArrowArrayData>) -> usize {
         data.child_data().iter().fold(0, |total_children, child| {
             total_children + get_num_nodes_from_array_data(child)
         }) + 1
     }
 
     fn get_buffer_counts_from_array_data<'a>(
-        node_data: &ArrowArrayData,
+        node_data: &Arc<ArrowArrayData>,
         node_meta: &'a [NodeStaticMeta],
     ) -> (Vec<usize>, &'a [NodeStaticMeta]) {
         // check current node's bitmap, node_meta is created by pre-order traversal so ordering
@@ -524,7 +542,7 @@ pub mod tests {
         (buffers, node_meta)
     }
 
-    fn get_node_mapping_from_array_data(data: &ArrowArrayData) -> NodeMapping {
+    fn get_node_mapping_from_array_data(data: &Arc<ArrowArrayData>) -> NodeMapping {
         if data.child_data().is_empty() {
             NodeMapping::empty()
         } else {
@@ -802,18 +820,22 @@ pub mod tests {
         let mut unit_byte_sizes = vec![];
 
         for date_dtype in [D::Date32, D::Date64] {
-            match date_dtype {
-                // data buffer size is independent of DateUnit
-                D::Date32 => unit_byte_sizes.push(4),
-                D::Date64 => unit_byte_sizes.push(8),
-                _ => unimplemented!(),
-            }
+            for date_unit in [DateUnit::Millisecond, DateUnit::Day] {
+                let full_date_type = date_dtype(date_unit);
 
-            fields.push(ArrowField::new(
-                &format!("c{}", fields.len()),
-                date_dtype,
-                false,
-            ));
+                match full_date_type {
+                    // data buffer size is independent of DateUnit
+                    D::Date32(_) => unit_byte_sizes.push(4),
+                    D::Date64(_) => unit_byte_sizes.push(8),
+                    _ => unimplemented!(),
+                }
+
+                fields.push(ArrowField::new(
+                    &format!("c{}", fields.len()),
+                    full_date_type,
+                    false,
+                ));
+            }
         }
 
         let schema = ArrowSchema::new_with_metadata(fields.clone(), get_dummy_metadata());
@@ -976,11 +998,7 @@ pub mod tests {
         let mut fields = vec![];
         let mut unit_byte_sizes = vec![];
 
-        for interval_unit in [
-            IntervalUnit::DayTime,
-            IntervalUnit::YearMonth,
-            IntervalUnit::MonthDayNano,
-        ] {
+        for interval_unit in [IntervalUnit::DayTime, IntervalUnit::YearMonth] {
             let interval_type = D::Interval(interval_unit.clone());
             fields.push(ArrowField::new(
                 &format!("c{}", fields.len()),
@@ -992,7 +1010,6 @@ pub mod tests {
             unit_byte_sizes.push(match interval_unit {
                 IntervalUnit::YearMonth => 4,
                 IntervalUnit::DayTime => 8,
-                IntervalUnit::MonthDayNano => 16,
             })
         }
 
@@ -1072,8 +1089,8 @@ pub mod tests {
             TimeUnit::Second,
         ] {
             for time_zone in [
-                Some("UTC".to_string()),
-                Some("Africa/Johannesburg".to_string()),
+                Some(Arc::new("UTC".to_string())),
+                Some(Arc::new("Africa/Johannesburg".to_string())),
                 None,
             ] {
                 fields.push(ArrowField::new(
@@ -1330,16 +1347,8 @@ pub mod tests {
     #[test]
     fn list_dtype_schema_to_col_hierarchy() {
         let fields = vec![
-            ArrowField::new(
-                "c0",
-                D::List(Box::new(ArrowField::new("item", D::Boolean, true))),
-                false,
-            ),
-            ArrowField::new(
-                "c1",
-                D::List(Box::new(ArrowField::new("item", D::UInt32, true))),
-                false,
-            ),
+            ArrowField::new("c0", D::List(Box::new(D::Boolean)), false),
+            ArrowField::new("c1", D::List(Box::new(D::UInt32)), false),
         ];
 
         let schema = ArrowSchema::new_with_metadata(fields.clone(), get_dummy_metadata());
@@ -1563,9 +1572,8 @@ pub mod tests {
             ),
         ]);
 
-        let struct_c1 = arrow::array::StructArray::from(
-            ArrowArrayData::builder(D::Struct(vec![])).build().unwrap(),
-        );
+        let struct_c1 =
+            arrow::array::StructArray::from(ArrowArrayData::builder(D::Struct(vec![])).build());
 
         let dummy_data_arrays: Vec<&dyn ArrowArray> = vec![&struct_c0, &struct_c1];
 

@@ -234,9 +234,6 @@ pub enum Error {
          store"
     )]
     MultipleWriteSharedState,
-
-    #[error("{0}")]
-    InvalidFlatbuffer(#[from] flatbuffers::InvalidFlatbuffer),
 }
 
 impl From<&str> for Error {
