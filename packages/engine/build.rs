@@ -32,10 +32,7 @@ fn main() {
     }
 
     cc::Build::new()
-        .compiler("clang++")
         .flag(&format!("-isystem{v8_include}"))
-        .flag("-isystem/usr/local/include/")
-        .flag("-L/usr/local/lib")
         .flag("-Wno-unused-result")
         .flag("-pthread")
         .flag(&format!("-L{v8_obj}"))
@@ -43,6 +40,5 @@ fn main() {
         .flag("-std=c++14")
         .file("src/worker/runner/javascript/mini_v8/ffi.cc")
         .cpp(true)
-        .cpp_link_stdlib("c++")
         .compile("libmini-v8-ffi.a");
 }
