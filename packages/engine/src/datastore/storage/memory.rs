@@ -198,8 +198,8 @@ impl Memory {
             return Err(Error::EmptySharedMemory);
         }
 
-        if size as u64 > i32::MAX as u64 {
-            return Err(Error::SharedMemoryMaxSize(size as u64, i32::MAX as u64));
+        if size as u64 > u32::MAX as u64 {
+            return Err(Error::SharedMemoryMaxSize(size as u64, u32::MAX as u64));
         }
         Ok(())
     }
