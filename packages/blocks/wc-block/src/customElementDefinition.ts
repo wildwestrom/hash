@@ -16,6 +16,8 @@ class BlockComponent extends LitElement implements BlockProtocolProps {
   @property({ type: String })
   entityTypeVersionId?: string | null;
 
+  dispatchEvent(event: Event): boolean {}
+
   dispatch(
     type: "updateEntities",
     payload: BlockProtocolUpdateEntitiesAction<{}>,
@@ -51,6 +53,7 @@ class TestComponent extends BlockComponent {
         The entityId of this block is ${this.entityId}. Use it to update its
         data when calling updateEntities.
       </p>
+      <input value=${this.name} />
     `;
   }
 }
