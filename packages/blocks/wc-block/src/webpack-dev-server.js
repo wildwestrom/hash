@@ -12,10 +12,12 @@ import Component from "./index";
 
 const node = document.getElementById("app");
 
-const App = () => (
-  <MockBlockDock>
-    <Component entityId="test-block-1" name="World" />
-  </MockBlockDock>
-);
+const App = () => {
+  return (
+    <MockBlockDock>
+      <Component entityId="test-block-1" name="World" />
+    </MockBlockDock>
+  );
+};
 
 ReactDOM.render(<App />, node);

@@ -1,38 +1,64 @@
 import { LitElement, css, html } from "lit";
-import { property } from "lit/decorators.js";
 
 import {
+  BlockProtocolFunctions,
   BlockProtocolProps,
   BlockProtocolUpdateEntitiesAction,
 } from "blockprotocol";
 
+type EventData<Operation extends keyof BlockProtocolFunctions> = {
+  type: Operation;
+  data: Parameters<BlockProtocolFunctions[Operation]>[0];
+};
+
 class BlockComponent extends LitElement implements BlockProtocolProps {
-  @property({ type: String })
+  static properties = {
+    accountId: { type: String },
+    entityId: { type: String },
+    entityTypeId: { type: String },
+    entityTypeVersionId: { type: String },
+  };
+
+  accountId?: string | null;
   entityId: string;
-
-  @property({ type: String })
   entityTypeId?: string | null;
-
-  @property({ type: String })
   entityTypeVersionId?: string | null;
 
-  dispatchEvent(event: Event): boolean {}
-
-  dispatch(
-    type: "updateEntities",
-    payload: BlockProtocolUpdateEntitiesAction<{}>,
-  ) {
+  protected dispatch<T extends keyof BlockProtocolFunctions>({
+    type,
+    data,
+  }: EventData<T>) {
     const bpEvent = new CustomEvent("bpAction", {
       bubbles: true,
       cancelable: true,
       composed: true,
       detail: {
         type,
-        payload,
+        data,
       },
     });
 
     this.dispatchEvent(bpEvent);
+  }
+
+  protected updateSelf(
+    data: Omit<
+      BlockProtocolUpdateEntitiesAction,
+      "entityId" | "entityTypeId" | "entityTypeVersionId"
+    >,
+  ) {
+    this.dispatch({
+      type: "updateEntities",
+      data: [
+        {
+          ...data,
+          accountId: this.accountId,
+          entityId: this.entityId,
+          entityTypeId: this.entityTypeId,
+          entityTypeVersionId: this.entityTypeVersionId,
+        },
+      ],
+    });
   }
 }
 
@@ -43,8 +69,16 @@ class TestComponent extends BlockComponent {
     }
   `;
 
-  @property()
+  static properties = {
+    ...BlockComponent.properties,
+    name: { type: String },
+  };
+
   name: string;
+
+  changeHandler(event: Event & { target: HTMLInputElement }) {
+    this.updateSelf({ data: { name: event.target.value } });
+  }
 
   render() {
     return html`
@@ -53,7 +87,7 @@ class TestComponent extends BlockComponent {
         The entityId of this block is ${this.entityId}. Use it to update its
         data when calling updateEntities.
       </p>
-      <input value=${this.name} />
+      <input @change=${this.changeHandler} value=${this.name} />
     `;
   }
 }
