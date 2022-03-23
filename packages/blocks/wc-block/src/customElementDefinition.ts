@@ -6,10 +6,14 @@ import {
   BlockProtocolUpdateEntitiesAction,
 } from "blockprotocol";
 
-type EventData<Operation extends keyof BlockProtocolFunctions> = {
+export type BpEventData<
+  Operation extends keyof BlockProtocolFunctions = keyof BlockProtocolFunctions,
+> = {
   type: Operation;
   data: Parameters<BlockProtocolFunctions[Operation]>[0];
 };
+
+export const bpEventName = "blockProtocolAction";
 
 class BlockComponent extends LitElement implements BlockProtocolProps {
   static properties = {
@@ -27,8 +31,8 @@ class BlockComponent extends LitElement implements BlockProtocolProps {
   protected dispatch<T extends keyof BlockProtocolFunctions>({
     type,
     data,
-  }: EventData<T>) {
-    const bpEvent = new CustomEvent("bpAction", {
+  }: BpEventData<T>) {
+    const bpEvent = new CustomEvent(bpEventName, {
       bubbles: true,
       cancelable: true,
       composed: true,
