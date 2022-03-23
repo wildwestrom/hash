@@ -1,7 +1,15 @@
-import React, { DOMAttributes, useEffect, useRef } from "react";
+import React, {
+  DOMAttributes,
+  MutableRefObject,
+  useEffect,
+  useRef,
+} from "react";
 import { BlockComponent } from "blockprotocol/react";
 
-import ComponentClass from "./customElementDefinition";
+import ComponentClass, {
+  BpEventData,
+  bpEventName,
+} from "./customElementDefinition";
 
 type CustomElement<T> = Partial<T & DOMAttributes<T> & { children: any }>;
 
@@ -14,7 +22,9 @@ declare global {
 
   namespace JSX {
     interface IntrinsicElements {
-      [blockTagName]: CustomElement<ComponentClass>;
+      [blockTagName]: CustomElement<ComponentClass> & {
+        ref: MutableRefObject<ComponentClass>;
+      };
     }
   }
 }
@@ -25,18 +35,33 @@ type AppProps = {
   name: string;
 };
 
-export const App: BlockComponent<AppProps> = ({ entityId, name }) => {
+export const App: BlockComponent<AppProps> = ({
+  entityId,
+  name,
+  ...otherProps
+}) => {
   const wcRef = useRef<ComponentClass>(null);
 
   useEffect(() => {
-    const handleEvent = (args) => console.log(args);
+    const handleEvent = ({ detail }: CustomEvent<BpEventData>) => {
+      const { type, data } = detail;
+      const fn = otherProps[detail.type];
+      if (!fn) {
+        throw new Error(
+          `${type} operation not implemented by embedding application.`,
+        );
+      }
+      fn(data as any) // @todo fix this
+        .then((resp) => `Successful call to ${type}: ${resp}`)
+        .catch((err) => `Call to ${type} errored: ${err.message}`);
+    };
 
     const element = wcRef.current;
 
-    element.addEventListener("bpEvent", handleEvent);
+    element.addEventListener(bpEventName, handleEvent);
 
-    return () => element.removeEventListener("bpEvent", handleEvent);
-  }, []);
+    return () => element.removeEventListener(bpEventName, handleEvent);
+  }, [otherProps]);
 
   return <my-block entityId={entityId} name={name} ref={wcRef} />;
 };
