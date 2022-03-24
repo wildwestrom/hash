@@ -1,37 +1,9 @@
-import React, {
-  DOMAttributes,
-  MutableRefObject,
-  useEffect,
-  useMemo,
-  useRef,
-} from "react";
+import React, { useMemo } from "react";
 import { BlockComponent } from "blockprotocol/react";
 import { createComponent } from "@lit-labs/react";
 
-import ComponentClass, {
-  BpEventData,
-  bpEventName,
-} from "./customElementDefinition";
-
-type CustomElement<T> = Partial<T & DOMAttributes<T> & { children: any }>;
-
-const blockTagName = "my-block";
-
-declare global {
-  interface HTMLElementTagNameMap {
-    [blockTagName]: ComponentClass;
-  }
-
-  namespace JSX {
-    interface IntrinsicElements {
-      [blockTagName]: CustomElement<ComponentClass> & {
-        ref: MutableRefObject<ComponentClass>;
-      };
-    }
-  }
-}
-
-customElements.define(blockTagName, ComponentClass);
+import ComponentClass from "./testComponent";
+import { BpEventData, bpEventName } from "./blockElement";
 
 type AppProps = {
   name: string;

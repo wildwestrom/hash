@@ -1,4 +1,4 @@
-import { html } from "lit";
+import { html, LitElement } from "lit";
 import {
   createElement,
   ComponentProps,
@@ -6,18 +6,16 @@ import {
   ComponentType,
 } from "react";
 import ReactDOM from "react-dom";
-import { BlockElement } from "./blockElement";
 
 const mountPointId = "reactRoot";
 
-class ReactWrappingElement extends BlockElement {
-  static element: ComponentType;
-
+class LitReactWrapper extends LitElement {
   static properties = {
-    ...BlockElement.properties,
     props: { type: Object },
+    element: { type: Object },
   };
 
+  element: ComponentType;
   mountPoint: HTMLElement;
   props: ComponentProps<any>;
   reactElement: ReactElement;
@@ -28,12 +26,12 @@ class ReactWrappingElement extends BlockElement {
   }
 
   render() {
-    return html`<div id=${mountPointId}></div>`;
+    return html`<div id=${mountPointId} /> `;
   }
 
   createElement() {
     this.reactElement = createElement(
-      (this.constructor as typeof ReactWrappingElement).element,
+      this.element,
       this.props,
       createElement("slot"),
     );
@@ -50,24 +48,10 @@ class ReactWrappingElement extends BlockElement {
   }
 
   updated(changedProperties) {
-    if (
-      changedProperties &&
-      JSON.stringify(changedProperties.props) !== JSON.stringify(this.props)
-    ) {
-      console.log(this);
+    if (changedProperties) {
       this.renderElement();
     }
   }
 }
 
-export const createComponentWrappingElementClass = (
-  element: ComponentType,
-  name?: string,
-) => {
-  const generatedClassName = `Wrapped${name ?? "Component"}`;
-  const generatedClass = class extends ReactWrappingElement {
-    static element = element;
-  };
-  Object.defineProperty(generatedClass, "name", { value: generatedClassName });
-  return generatedClass;
-};
+export default LitReactWrapper;

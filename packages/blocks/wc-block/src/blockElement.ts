@@ -1,4 +1,4 @@
-import { LitElement } from "lit";
+import { html, LitElement } from "lit";
 
 import {
   BlockProtocolFunctions,
@@ -15,18 +15,18 @@ export type BpEventData<
 
 export const bpEventName = "blockProtocolAction";
 
-export interface BlockElement extends LitElement, BlockProtocolProps {}
-export class BlockElement extends LitElement {
+export class BlockElement extends LitElement implements BlockProtocolProps {
   static properties = {
     accountId: { type: String },
     entityId: { type: String },
     entityTypeId: { type: String },
     entityTypeVersionId: { type: String },
-    entityTypes: { type: Array },
-    linkedAggregations: { type: Array },
-    linkedEntities: { type: Array },
-    linkGroups: { type: Array },
   };
+
+  accountId?: string | null;
+  entityId: string;
+  entityTypeId?: string | null;
+  entityTypeVersionId?: string | null;
 
   protected dispatch<T extends keyof BlockProtocolFunctions>({
     type,
@@ -63,5 +63,9 @@ export class BlockElement extends LitElement {
         },
       ],
     });
+  }
+
+  render() {
+    return html`<div>Hello</div>`;
   }
 }

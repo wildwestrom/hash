@@ -6,9 +6,8 @@ import React, {
 } from "react";
 import { BlockComponent } from "blockprotocol/react";
 
-// import ComponentClass from "./testComponent";
-import { WrappingElementClass as ComponentClass } from "./testReactComponent";
-import { BlockElement, BpEventData, bpEventName } from "./blockElement";
+import ComponentClass from "./testComponent";
+import { BpEventData, bpEventName } from "./blockElement";
 
 type CustomElement<T> = Partial<T & DOMAttributes<T> & { children: any }>;
 
@@ -16,13 +15,13 @@ const blockTagName = "my-block";
 
 declare global {
   interface HTMLElementTagNameMap {
-    [blockTagName]: BlockElement;
+    [blockTagName]: ComponentClass;
   }
 
   namespace JSX {
     interface IntrinsicElements {
-      [blockTagName]: CustomElement<BlockElement> & {
-        ref: MutableRefObject<BlockElement>;
+      [blockTagName]: CustomElement<ComponentClass> & {
+        ref: MutableRefObject<ComponentClass>;
       };
     }
   }
@@ -39,7 +38,7 @@ export const App: BlockComponent<AppProps> = ({
   name,
   ...otherProps
 }) => {
-  const wcRef = useRef<BlockElement>(null);
+  const wcRef = useRef<ComponentClass>(null);
 
   useEffect(() => {
     const handleEvent = ({ detail }: CustomEvent<BpEventData>) => {
