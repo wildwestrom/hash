@@ -1,4 +1,4 @@
-import { LitElement, css, html } from "lit";
+import { html, LitElement } from "lit";
 
 import {
   BlockProtocolFunctions,
@@ -15,7 +15,7 @@ export type BpEventData<
 
 export const bpEventName = "blockProtocolAction";
 
-class BlockComponent extends LitElement implements BlockProtocolProps {
+export class BlockElement extends LitElement implements BlockProtocolProps {
   static properties = {
     accountId: { type: String },
     entityId: { type: String },
@@ -48,7 +48,7 @@ class BlockComponent extends LitElement implements BlockProtocolProps {
   protected updateSelf(
     data: Omit<
       BlockProtocolUpdateEntitiesAction,
-      "entityId" | "entityTypeId" | "entityTypeVersionId"
+      "accountId" | "entityId" | "entityTypeId" | "entityTypeVersionId"
     >,
   ) {
     this.dispatch({
@@ -64,36 +64,8 @@ class BlockComponent extends LitElement implements BlockProtocolProps {
       ],
     });
   }
-}
-
-class TestComponent extends BlockComponent {
-  static styles = css`
-    p {
-      color: blue;
-    }
-  `;
-
-  static properties = {
-    ...BlockComponent.properties,
-    name: { type: String },
-  };
-
-  name: string;
-
-  changeHandler(event: Event & { target: HTMLInputElement }) {
-    this.updateSelf({ data: { name: event.target.value } });
-  }
 
   render() {
-    return html`
-      <h1>Hello, ${this.name}</h1>
-      <p>
-        The entityId of this block is ${this.entityId}. Use it to update its
-        data when calling updateEntities.
-      </p>
-      <input @change=${this.changeHandler} value=${this.name} />
-    `;
+    return html`<div>Hello</div>`;
   }
 }
-
-export default TestComponent;
