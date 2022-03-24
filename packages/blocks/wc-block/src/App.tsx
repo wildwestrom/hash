@@ -2,9 +2,11 @@ import React, {
   DOMAttributes,
   MutableRefObject,
   useEffect,
+  useMemo,
   useRef,
 } from "react";
 import { BlockComponent } from "blockprotocol/react";
+import { createComponent } from "@lit-labs/react";
 
 import ComponentClass, {
   BpEventData,
@@ -40,28 +42,32 @@ export const App: BlockComponent<AppProps> = ({
   name,
   ...otherProps
 }) => {
-  const wcRef = useRef<ComponentClass>(null);
+  const handleBpEvent = useMemo(
+    () =>
+      ({ detail }: CustomEvent<BpEventData>) => {
+        const { type, data } = detail;
+        const fn = otherProps[detail.type];
+        if (!fn) {
+          throw new Error(
+            `${type} operation not implemented by embedding application.`,
+          );
+        }
+        fn(data as any) // @todo fix this
+          .then((resp) => `Successful call to ${type}: ${resp}`)
+          .catch((err) => `Call to ${type} errored: ${err.message}`);
+      },
+    [otherProps],
+  );
 
-  useEffect(() => {
-    const handleEvent = ({ detail }: CustomEvent<BpEventData>) => {
-      const { type, data } = detail;
-      const fn = otherProps[detail.type];
-      if (!fn) {
-        throw new Error(
-          `${type} operation not implemented by embedding application.`,
-        );
-      }
-      fn(data as any) // @todo fix this
-        .then((resp) => `Successful call to ${type}: ${resp}`)
-        .catch((err) => `Call to ${type} errored: ${err.message}`);
-    };
+  const CustomElement = createComponent(React, "my-element", ComponentClass, {
+    handleBpEvent: bpEventName,
+  });
 
-    const element = wcRef.current;
-
-    element.addEventListener(bpEventName, handleEvent);
-
-    return () => element.removeEventListener(bpEventName, handleEvent);
-  }, [otherProps]);
-
-  return <my-block entityId={entityId} name={name} ref={wcRef} />;
+  return (
+    <CustomElement
+      entityId={entityId}
+      handleBpEvent={handleBpEvent}
+      name={name}
+    />
+  );
 };
