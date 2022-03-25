@@ -15,18 +15,18 @@ export type BpEventData<
 
 export const bpEventName = "blockProtocolAction";
 
-export class BlockElement extends LitElement implements BlockProtocolProps {
+export interface BlockElement extends LitElement, BlockProtocolProps {}
+export class BlockElement {
   static properties = {
     accountId: { type: String },
     entityId: { type: String },
     entityTypeId: { type: String },
     entityTypeVersionId: { type: String },
+    entityTypes: { type: Array },
+    linkedAggregations: { type: Array },
+    linkedEntities: { type: Array },
+    linkGroups: { type: Array },
   };
-
-  accountId?: string | null;
-  entityId: string;
-  entityTypeId?: string | null;
-  entityTypeVersionId?: string | null;
 
   protected dispatch<T extends keyof BlockProtocolFunctions>({
     type,
