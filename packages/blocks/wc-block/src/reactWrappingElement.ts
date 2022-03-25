@@ -9,13 +9,13 @@ import ReactDOM from "react-dom";
 
 const mountPointId = "reactRoot";
 
-class LitReactWrapper extends LitElement {
+class ReactWrappingElement extends LitElement {
+  static element: ComponentType;
+
   static properties = {
     props: { type: Object },
-    element: { type: Object },
   };
 
-  element: ComponentType;
   mountPoint: HTMLElement;
   props: ComponentProps<any>;
   reactElement: ReactElement;
@@ -31,7 +31,7 @@ class LitReactWrapper extends LitElement {
 
   createElement() {
     this.reactElement = createElement(
-      this.element,
+      (this.constructor as typeof ReactWrappingElement).element,
       this.props,
       createElement("slot"),
     );
@@ -54,4 +54,15 @@ class LitReactWrapper extends LitElement {
   }
 }
 
-export default LitReactWrapper;
+export const createComponentWrappingElementClass = (
+  element: ComponentType,
+  name?: string,
+) => {
+  const generatedClassName = `Wrapped${name ?? "Component"}`;
+  const generatedClassContainer = {
+    [generatedClassName]: class extends ReactWrappingElement {
+      static element = element;
+    },
+  };
+  return generatedClassContainer[generatedClassName];
+};
