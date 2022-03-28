@@ -59,10 +59,9 @@ export const createComponentWrappingElementClass = (
   name?: string,
 ) => {
   const generatedClassName = `Wrapped${name ?? "Component"}`;
-  const generatedClassContainer = {
-    [generatedClassName]: class extends ReactWrappingElement {
-      static element = element;
-    },
+  const generatedClass = class extends ReactWrappingElement {
+    static element = element;
   };
-  return generatedClassContainer[generatedClassName];
+  Object.defineProperty(generatedClass, "name", { value: generatedClassName });
+  return generatedClass;
 };

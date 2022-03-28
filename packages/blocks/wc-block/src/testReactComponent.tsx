@@ -1,4 +1,4 @@
-import { VoidFunctionComponent } from "react";
+import React, { VoidFunctionComponent } from "react";
 import { createComponentWrappingElementClass } from "./reactWrappingElement";
 
 export const TestReactComponent: VoidFunctionComponent = () => (
@@ -7,5 +7,5 @@ export const TestReactComponent: VoidFunctionComponent = () => (
 
 export const WrappingElementClass = createComponentWrappingElementClass(
   TestReactComponent,
-  "test",
+  "TestComponent",
 );
