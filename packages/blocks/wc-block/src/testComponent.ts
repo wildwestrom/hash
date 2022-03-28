@@ -21,7 +21,7 @@ class TestComponent extends BlockElement {
   }
 
   render() {
-    console.log("RENDERING");
+    // console.log("RENDERING");
     return html`
       <h1>Hello, ${this.name}</h1>
       <p>
