@@ -1,17 +1,21 @@
-import React, { useMemo } from "react";
+import React, { useMemo, VFC } from "react";
 import { BlockComponent } from "blockprotocol/react";
 import { createComponent } from "@lit-labs/react";
+import { BlockProtocolFunctions } from "blockprotocol";
 
-import ComponentClass from "./basicLitElement";
-import { BpEventData } from "./blockElement";
-
-type AppProps = {
-  name: string;
+type BpEventData<
+  Operation extends keyof BlockProtocolFunctions = keyof BlockProtocolFunctions,
+> = {
+  type: Operation;
+  data: Parameters<BlockProtocolFunctions[Operation]>[0];
 };
 
-export const App: BlockComponent<AppProps> = ({
-  entityId,
-  name,
+type WebComponentBlockProps = {
+  elementClass: String;
+};
+
+export const WebComponentBlock: VFC<WebComponentBlockProps> = ({
+  elementClass,
   ...otherProps
 }) => {
   const handleBpEvent = useMemo(
@@ -31,12 +35,9 @@ export const App: BlockComponent<AppProps> = ({
     [otherProps],
   );
 
-  const CustomElement = createComponent(
-    React,
-    "custom-element",
-    ComponentClass,
-    { handleBpEvent },
-  );
+  const CustomElement = createComponent(React, "custom-element", elementClass, {
+    handleBpEvent,
+  });
 
   console.log({ CustomElement });
 

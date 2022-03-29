@@ -3,6 +3,7 @@ import React from "react";
 
 import { HtmlBlock } from "../HtmlBlock/HtmlBlock";
 import { useRemoteBlock } from "./useRemoteBlock";
+import { WebComponentBlock } from "../WebComponentBlock/WebComponentBlock";
 
 type RemoteBlockProps = {
   crossFrame?: boolean;
@@ -46,6 +47,10 @@ export const RemoteBlock: React.VFC<RemoteBlockProps & Record<string, any>> = ({
      *    or check for iframe status and assign props to window here, not FramedBlock?
      */
     return <HtmlBlock html={Component} />;
+  }
+
+  if (Component.prototype instanceof HTMLElement) {
+    return <WebComponentBlock elementClass={Component} {...props} />;
   }
 
   return <Component {...props} />;

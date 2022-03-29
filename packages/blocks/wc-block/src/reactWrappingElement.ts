@@ -1,4 +1,4 @@
-import { html, LitElement } from "lit";
+import { html } from "lit";
 import {
   createElement,
   ComponentProps,
@@ -6,13 +6,15 @@ import {
   ComponentType,
 } from "react";
 import ReactDOM from "react-dom";
+import { BlockElement } from "./blockElement";
 
 const mountPointId = "reactRoot";
 
-class ReactWrappingElement extends LitElement {
+class ReactWrappingElement extends BlockElement {
   static element: ComponentType;
 
   static properties = {
+    ...BlockElement.properties,
     props: { type: Object },
   };
 
@@ -26,7 +28,7 @@ class ReactWrappingElement extends LitElement {
   }
 
   render() {
-    return html`<div id=${mountPointId} /> `;
+    return html`<div id=${mountPointId}></div>`;
   }
 
   createElement() {
@@ -48,7 +50,11 @@ class ReactWrappingElement extends LitElement {
   }
 
   updated(changedProperties) {
-    if (changedProperties) {
+    if (
+      changedProperties &&
+      JSON.stringify(changedProperties.props) !== JSON.stringify(this.props)
+    ) {
+      console.log(this);
       this.renderElement();
     }
   }

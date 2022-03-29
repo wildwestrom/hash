@@ -2,7 +2,7 @@ import { css, html } from "lit";
 
 import { BlockElement } from "./blockElement";
 
-class TestComponent extends BlockElement {
+export class SimpleBlock extends BlockElement {
   static styles = css`
     p {
       color: blue;
@@ -31,5 +31,3 @@ class TestComponent extends BlockElement {
     `;
   }
 }
-
-export default TestComponent;

@@ -6,8 +6,8 @@ import React, {
 } from "react";
 import { BlockComponent } from "blockprotocol/react";
 
-import ComponentClass from "./testComponent";
-// import { WrappingElementClass as ComponentClass } from "./testReactComponent";
+// import ComponentClass from "./testComponent";
+import { WrappingElementClass as ComponentClass } from "./testReactComponent";
 import { BlockElement, BpEventData, bpEventName } from "./blockElement";
 
 type CustomElement<T> = Partial<T & DOMAttributes<T> & { children: any }>;
