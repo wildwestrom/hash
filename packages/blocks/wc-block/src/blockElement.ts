@@ -10,7 +10,7 @@ export type BpEventData<
   Operation extends keyof BlockProtocolFunctions = keyof BlockProtocolFunctions,
 > = {
   type: Operation;
-  data: Parameters<BlockProtocolFunctions[Operation]>[0];
+  data: Parameters<Required<BlockProtocolFunctions>[Operation]>[0];
 };
 
 export const bpEventName = "blockProtocolAction";

@@ -1,23 +1,31 @@
-import { BlockProtocolProps } from "blockprotocol";
+import { BlockProtocolFunctions, BlockProtocolProps } from "blockprotocol";
 import React from "react";
 
 import { HtmlBlock } from "../HtmlBlock/HtmlBlock";
 import { useRemoteBlock } from "./useRemoteBlock";
 import { WebComponentBlock } from "../WebComponentBlock/WebComponentBlock";
+import { UnknownComponent } from "./loadRemoteBlock";
 
 type RemoteBlockProps = {
   crossFrame?: boolean;
+  functions: BlockProtocolFunctions;
   sourceUrl: string;
   onBlockLoaded?: () => void;
-} & BlockProtocolProps;
+} & Omit<BlockProtocolProps, keyof BlockProtocolFunctions>;
 
 export const BlockLoadingIndicator: React.VFC = () => <div>Loading...</div>;
+
+const isHtmlElement = (
+  component: UnknownComponent,
+): component is typeof HTMLElement =>
+  component.prototype instanceof HTMLElement;
 
 /**
  * @see https://github.com/Paciolan/remote-component/blob/2b2cfbb5b6006117c56f3aa7daa2292d3823bb83/src/createRemoteComponent.tsx
  */
 export const RemoteBlock: React.VFC<RemoteBlockProps & Record<string, any>> = ({
   crossFrame,
+  functions,
   sourceUrl,
   onBlockLoaded,
   ...props
@@ -49,9 +57,16 @@ export const RemoteBlock: React.VFC<RemoteBlockProps & Record<string, any>> = ({
     return <HtmlBlock html={Component} />;
   }
 
-  if (Component.prototype instanceof HTMLElement) {
-    return <WebComponentBlock elementClass={Component} {...props} />;
+  if (isHtmlElement(Component)) {
+    return (
+      <WebComponentBlock
+        blockName="@hash/test-block"
+        elementClass={Component}
+        functions={functions}
+        {...props}
+      />
+    );
   }
 
-  return <Component {...props} />;
+  return <Component {...props} {...functions} />;
 };

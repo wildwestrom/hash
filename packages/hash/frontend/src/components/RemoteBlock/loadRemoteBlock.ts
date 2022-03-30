@@ -2,7 +2,9 @@ import { memoizeFetchFunction } from "../../lib/memoize";
 import { blockDependencies } from "../../../block.dependencies";
 import { crossFrameFetchFn } from "../sandbox/FramedBlock/util";
 
-export type UnknownComponent = (...props: any[]) => JSX.Element;
+export type UnknownComponent =
+  | typeof HTMLElement
+  | ((...props: any[]) => JSX.Element);
 
 export type FetchSourceFn = (
   url: string,
