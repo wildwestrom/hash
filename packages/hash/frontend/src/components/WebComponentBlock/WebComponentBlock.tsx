@@ -65,7 +65,6 @@ export const WebComponentBlock: VFC<WebComponentBlockProps> = ({
   const handleBpEvent = useCallback(
     ({ detail }: CustomEvent<BpEventData>) => {
       const { type, data } = detail;
-      console.log(type, data);
       const fn = functions[detail.type];
       if (!fn) {
         throw new Error(
@@ -94,8 +93,10 @@ export const WebComponentBlock: VFC<WebComponentBlockProps> = ({
   }
 
   const CustomElement = createComponent(React, tagName, elementClass, {
-    handleBpEvent: "bpEvent",
+    handleBpEvent: "blockProtocolAction",
   });
+
+  console.log({ props });
 
   return <CustomElement handleBpEvent={handleBpEvent} {...props} />;
 };
