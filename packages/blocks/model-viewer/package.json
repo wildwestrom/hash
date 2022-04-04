@@ -1,7 +1,7 @@
 {
-  "name": "wc-simple-block",
+  "name": "model-viewer",
   "version": "0.0.0",
-  "description": "wc-simple-block block",
+  "description": "model-viewer block",
   "keywords": [
     "blockprotocol",
     "blocks"
@@ -17,12 +17,11 @@
     "dev": "concurrently -n webpack,webpack-dev-server -c green,cyan \"yarn build:dev --watch\" \"yarn run-dev-server\"",
     "lint:tsc": "tsc --noEmit",
     "run-dev-server": "cross-env NODE_ENV=development webpack-dev-server --config webpack-dev-server.config.js",
-    "schema": "typescript-json-schema tsconfig.json AppProps --required true --out dist/block-schema.json",
-    "serve": "serve -C -l 61653 ./dist/"
+    "schema": "typescript-json-schema tsconfig.json AppProps --required true --out dist/block-schema.json"
   },
   "dependencies": {
-    "blockprotocol": "0.0.7",
-    "lit": "2.2.1"
+    "@google/model-viewer": "1.11.0",
+    "blockprotocol": "0.0.7"
   },
   "devDependencies": {
     "@babel/cli": "^7.17.0",
@@ -57,7 +56,7 @@
     "react-dom": "^17.0.2"
   },
   "blockprotocol": {
-    "displayName": "Simple Web Component",
+    "displayName": "Template",
     "examples": [
       {}
     ],

@@ -96,7 +96,5 @@ export const WebComponentBlock: VFC<WebComponentBlockProps> = ({
     handleBpEvent: "blockProtocolAction",
   });
 
-  console.log({ props });
-
   return <CustomElement handleBpEvent={handleBpEvent} {...props} />;
 };
