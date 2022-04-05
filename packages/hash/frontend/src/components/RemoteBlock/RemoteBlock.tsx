@@ -40,12 +40,12 @@ export const RemoteBlock: React.VFC<RemoteBlockProps & Record<string, any>> = ({
     return <BlockLoadingIndicator />;
   }
 
-  if (!Component) {
-    throw new Error("Could not load and parse block from URL");
-  }
-
   if (err) {
     throw err;
+  }
+
+  if (!Component) {
+    throw new Error("Could not load and parse block from URL");
   }
 
   if (typeof Component === "string") {
@@ -60,7 +60,7 @@ export const RemoteBlock: React.VFC<RemoteBlockProps & Record<string, any>> = ({
   if (isHtmlElement(Component)) {
     return (
       <WebComponentBlock
-        blockName="@hash/test-block"
+        blockName="@model/viewer"
         elementClass={Component}
         functions={functions}
         {...props}

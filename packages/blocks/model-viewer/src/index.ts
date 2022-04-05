@@ -1,6 +1,6 @@
 /**
  * Entrypoint of the Block Component.
  */
-import { App } from "./App";
+import { ModelViewerElement } from "./App";
 
-export default App;
+export default ModelViewerElement;

@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "Model Viewer",
+  "properties": {
+    "alt": {
+      "description": "Text describing the 3D model",
+      "type": "string"
+    },
+    "ar": {
+      "default": true,
+      "description": "Enable the ability to launch AR experiences on supported devices.",
+      "type": "boolean"
+    },
+    "ar-modes": {
+      "default": "webxr scene-viewer quick-look",
+      "description": "A space-separated, prioritized list of the types of AR experiences to enable, from 'webxr', 'scene-viewer' and 'quick-look'.",
+      "type": "string"
+    },
+    "camera-controls": {
+      "default": true,
+      "description": "Enables controls via mouse/touch.",
+      "type": "boolean"
+    },
+    "enable-pan": {
+      "description": "Enable panning interactions using two-finger touch, or dragging with right-click or modifier key.",
+      "default": true,
+      "type": "boolean"
+    },
+    "environment-image": {
+      "type": "string",
+      "format": "uri"
+    },
+    "poster": {
+      "description": "A placeholder image to display while the model is loading.",
+      "type": "string",
+      "format": "uri"
+    },
+    "seamless-poster": {
+      "default": true,
+      "description": "Turn off the poster's transition.",
+      "type": "boolean"
+    },
+    "shadow-intensity": {
+      "default": 1,
+      "description": "Controls the opacity of the shadow. Set to 0 to turn off the shadow entirely.",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "src": {
+      "type": "string",
+      "format": "uri"
+    }
+  },
+  "required": ["src"],
+  "config": [
+    "alt",
+    "ar",
+    "ar-modes",
+    "camera-controls",
+    "enable-pan",
+    "environment-image",
+    "poster",
+    "seamless-poster",
+    "src",
+    "shadow-intensity"
+  ]
+}

@@ -52,8 +52,6 @@ const fetchAndParseBlock: FetchAndParseFn = (fetchSourceFn) => (url, signal) =>
     const func = new Function("require", "module", "exports", source);
     func(requires, module, exports);
 
-    console.log("TEST", module.exports, module);
-
     /**
      * @todo check it's actually a React component
      * we can use a different rendering strategy for other component types

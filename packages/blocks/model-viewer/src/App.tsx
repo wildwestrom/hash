@@ -1,3 +1,1 @@
-import { ModelViewerElement } from "@google/model-viewer";
-
-export default ModelViewerElement;
+export { ModelViewerElement } from "@google/model-viewer";

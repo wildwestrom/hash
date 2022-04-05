@@ -12,6 +12,9 @@ const { StatsPlugin } = require("./webpack-block-metadata-plugin");
 const { peerDependencies } = require("./package.json");
 
 module.exports = {
+  optimization: {
+    minimize: false,
+  },
   plugins: [
     new webpack.EnvironmentPlugin({
       "process.env.NODE_ENV": process.env.NODE_ENV,
@@ -25,7 +28,12 @@ module.exports = {
       output: "manifest.json",
     }),
     new StatsPlugin(),
-    new CopyPlugin({ patterns: [{ from: "./public/", to: "./public/" }] }),
+    new CopyPlugin({
+      patterns: [
+        { from: "./public/", to: "./public/" },
+        { from: "./block-schema.json", to: "./block-schema.json" },
+      ],
+    }),
   ],
 
   entry: {
