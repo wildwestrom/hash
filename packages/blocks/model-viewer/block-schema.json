@@ -65,5 +65,13 @@
     "seamless-poster",
     "src",
     "shadow-intensity"
-  ]
+  ],
+  "default": {
+    "ar": true,
+    "ar-modes": "webxr scene-viewer quick-look",
+    "camera-controls": true,
+    "enable-pan": true,
+    "seamless-poster": true,
+    "shadow-intensity": 1
+  }
 }

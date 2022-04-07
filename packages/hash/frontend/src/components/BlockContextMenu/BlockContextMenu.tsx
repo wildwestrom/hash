@@ -5,6 +5,7 @@ import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import CopyIcon from "@mui/icons-material/FileCopyOutlined";
 import LoopIcon from "@mui/icons-material/LoopOutlined";
 import LinkIcon from "@mui/icons-material/LinkOutlined";
+import SettingsIcon from "@mui/icons-material/SettingsOutlined";
 import { useKey } from "rooks";
 import { unstable_batchedUpdates } from "react-dom";
 
@@ -30,6 +31,7 @@ type BlockContextMenuProps = {
   closeMenu: () => void;
   entityId: string | null;
   entityStore: EntityStore;
+  openConfigMenu: () => void;
 };
 
 const MENU_ITEMS: Array<MenuItemType> = [
@@ -49,6 +51,11 @@ const MENU_ITEMS: Array<MenuItemType> = [
     icon: <LinkIcon className={iconStyles} />,
   },
   {
+    key: "configure",
+    title: "Configure",
+    icon: <SettingsIcon className={iconStyles} />,
+  },
+  {
     key: "switchBlock",
     title: "Turn into",
     icon: <LoopIcon className={iconStyles} />,
@@ -60,6 +67,7 @@ export const BlockContextMenu: React.VFC<BlockContextMenuProps> = ({
   closeMenu,
   entityId,
   entityStore,
+  openConfigMenu,
 }) => {
   const blockData = entityId ? entityStore.saved[entityId] : null;
 
@@ -166,6 +174,9 @@ export const BlockContextMenu: React.VFC<BlockContextMenuProps> = ({
   const onItemClick: ItemClickMethod = (key) => {
     // handle menu item click here
     switch (key) {
+      case "configure":
+        openConfigMenu();
+        break;
       case "delete":
         break;
       case "switchBlock":
@@ -180,7 +191,7 @@ export const BlockContextMenu: React.VFC<BlockContextMenuProps> = ({
       }
     }
 
-    if (key !== "switchBlock") {
+    if (key !== "switchBlock" && key !== "configure") {
       closeMenu();
     }
   };

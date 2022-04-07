@@ -13,7 +13,7 @@ export type BpEventData<
   data: Parameters<Required<BlockProtocolFunctions>[Operation]>[0];
 };
 
-export const bpEventName = "blockProtocolAction";
+export const bpEventName = "blockProtocolEvent";
 
 export interface BlockElement extends LitElement, BlockProtocolProps {}
 export class BlockElement extends LitElement {

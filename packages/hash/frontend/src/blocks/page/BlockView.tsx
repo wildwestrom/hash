@@ -9,7 +9,15 @@ import { BlockVariant } from "blockprotocol";
 import { ProsemirrorNode, Schema } from "prosemirror-model";
 import { NodeSelection } from "prosemirror-state";
 import { EditorView, NodeView } from "prosemirror-view";
-import { createRef, forwardRef, RefObject, useMemo, useState } from "react";
+import {
+  createRef,
+  forwardRef,
+  RefObject,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import { useOutsideClick } from "rooks";
 import { tw } from "twind";
 import { BlockContextMenu } from "../../components/BlockContextMenu/BlockContextMenu";
@@ -20,26 +28,76 @@ import { CollabPositionIndicators } from "./CollabPositionIndicators";
 import { BlockSuggesterProps } from "./createSuggester/BlockSuggester";
 import styles from "./style.module.css";
 import { RenderPortal } from "./usePortals";
+import { BlockConfigMenu } from "../../components/BlockConfigMenu/BlockConfigMenu";
+import { BlockMeta, fetchBlockMeta } from "@hashintel/hash-shared/blockMeta";
 
 type BlockHandleProps = {
+  componentId: string;
   entityId: string | null;
   onTypeChange: BlockSuggesterProps["onChange"];
   entityStore: EntityStore;
 };
 
 export const BlockHandle = forwardRef<HTMLDivElement, BlockHandleProps>(
-  ({ entityId, onTypeChange, entityStore }, ref) => {
-    const [isPopoverVisible, setPopoverVisible] = useState(false);
+  ({ componentId, entityId, onTypeChange, entityStore }, ref) => {
+    const [blockSchema, setBlockSchema] = useState<
+      BlockMeta["componentSchema"] | null
+    >(null);
 
-    useOutsideClick(ref as RefObject<HTMLDivElement>, () =>
-      setPopoverVisible(false),
-    );
+    const [menuVisibility, setMenuVisibility] = useState({
+      configMenu: false,
+      contextMenu: false,
+    });
+
+    useEffect(() => {
+      if (!componentId) {
+        return;
+      }
+      fetchBlockMeta(componentId)
+        .then((meta) => setBlockSchema(meta.componentSchema))
+        .catch((err) => {
+          console.error(
+            `Could not fetch block metadata for component ${componentId}: ${err.message}`,
+          );
+          setBlockSchema(null);
+        });
+    }, [componentId]);
+
+    const closeMenus = () => {
+      setMenuVisibility({
+        configMenu: false,
+        contextMenu: false,
+      });
+    };
+
+    const openConfigMenu = () => {
+      setMenuVisibility({
+        configMenu: true,
+        contextMenu: false,
+      });
+    };
+
+    const openContextMenu = () => {
+      setMenuVisibility({
+        configMenu: false,
+        contextMenu: true,
+      });
+    };
+
+    /**
+     * @todo this hook listens for 'click' outside, which also captures mouseup
+     *    this is annoying because if you click inside to select, and selection ends outside, it closes.
+     *    we should replace or patch the hook to use mouseDown instead (check mobile implementation also)
+     *    @see https://github.com/imbhargav5/rooks/pull/204 - aborted attempt to allow this
+     *    @see https://app.asana.com/0/1200211978612931/1202073961250693/f (internal)
+     */
+    useOutsideClick(ref as RefObject<HTMLDivElement>, closeMenus);
 
     const blockSuggesterProps: BlockSuggesterProps = useMemo(
       () => ({
         onChange: (variant, block) => {
           onTypeChange(variant, block);
-          setPopoverVisible(false);
+          closeMenus();
         },
       }),
       [onTypeChange],
@@ -51,14 +109,18 @@ export const BlockHandle = forwardRef<HTMLDivElement, BlockHandleProps>(
         className={tw`relative cursor-pointer`}
         data-testid="block-changer"
       >
-        <DragVerticalIcon onClick={() => setPopoverVisible(true)} />
-        {isPopoverVisible && (
+        <DragVerticalIcon onClick={openContextMenu} />
+        {menuVisibility.contextMenu && (
           <BlockContextMenu
             entityId={entityId}
             blockSuggesterProps={blockSuggesterProps}
-            closeMenu={() => setPopoverVisible(false)}
+            closeMenu={closeMenus}
             entityStore={entityStore}
+            openConfigMenu={openConfigMenu}
           />
+        )}
+        {menuVisibility.configMenu && (
+          <BlockConfigMenu blockSchema={blockSchema} closeMenu={closeMenus} />
         )}
       </div>
     );
@@ -103,6 +165,17 @@ export class BlockView implements NodeView<Schema> {
     const draftEntity = this.store.draft[blockEntityNode.attrs.draftId];
 
     return draftEntity?.entityId ?? null;
+  };
+
+  getComponentId = () => {
+    let node: ProsemirrorNode<Schema> | null | undefined = this.node;
+    while (["block", "entity"].includes(node.type.name)) {
+      node = node.firstChild;
+      if (!node) {
+        throw new Error("No component node attached to BlockView tree.");
+      }
+    }
+    return node.type.name;
   };
 
   constructor(
@@ -219,6 +292,8 @@ export class BlockView implements NodeView<Schema> {
       this.dom.id = getBlockDomId(blockEntityId);
     }
 
+    const componentId = this.getComponentId();
+
     this.renderPortal(
       <BlockViewContext.Provider value={this}>
         <CollabPositionIndicators blockEntityId={blockEntityId} />
@@ -259,6 +334,7 @@ export class BlockView implements NodeView<Schema> {
           onClick={this.onDragEnd}
         />
         <BlockHandle
+          componentId={componentId}
           ref={this.blockHandleRef}
           entityId={blockEntityId}
           onTypeChange={this.onBlockChange}

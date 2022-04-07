@@ -24,7 +24,7 @@ try {
 
 const App = () => {
   const CustomElement = createComponent(React, tagName, ElementClass, {
-    handleBpEvent: "blockProtocolAction",
+    handleBpEvent: "blockProtocolEvent",
   });
 
   const modelViewerProps = {
