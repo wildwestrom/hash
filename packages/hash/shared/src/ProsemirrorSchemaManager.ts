@@ -427,6 +427,11 @@ export class ProsemirrorSchemaManager {
 
     let blockIdForNode = draftBlockId;
 
+    const defaultProperties = {
+      ...((meta.componentSchema.default as {}) ?? {}),
+      ...targetVariant.properties,
+    };
+
     if (blockIdForNode) {
       const entityStoreState = entityStorePluginState(this.view.state);
 
@@ -469,7 +474,7 @@ export class ProsemirrorSchemaManager {
             type: "updateEntityProperties",
             payload: {
               draftId: blockEntity.properties.entity.draftId,
-              properties: targetVariant.properties ?? {},
+              properties: defaultProperties ?? {},
               merge: true,
             },
           });
@@ -477,7 +482,7 @@ export class ProsemirrorSchemaManager {
           blockIdForNode = await this.createNewDraftBlock(
             tr,
             {
-              ...targetVariant.properties,
+              ...defaultProperties,
               text: {
                 __linkedData: {},
                 data: isTextContainingEntityProperties(
@@ -491,7 +496,7 @@ export class ProsemirrorSchemaManager {
           );
         }
       } else {
-        let entityProperties = targetVariant?.properties ?? {};
+        let entityProperties = defaultProperties;
         if (blockComponentRequiresText(meta.componentSchema)) {
           const textEntityLink = isDraftTextContainingEntityProperties(
             blockEntity.properties.entity.properties,
@@ -515,7 +520,7 @@ export class ProsemirrorSchemaManager {
         );
       }
     } else {
-      let entityProperties = targetVariant?.properties ?? {};
+      let entityProperties = defaultProperties;
 
       if (blockComponentRequiresText(meta.componentSchema)) {
         const newTextDraftId = newDraftId();
@@ -575,6 +580,8 @@ export class ProsemirrorSchemaManager {
     if (!this.view) {
       throw new Error("Cannot trigger createNewDraftBlock without view");
     }
+
+    console.log({ entityProperties });
 
     const newBlockId = newDraftId();
     addEntityStoreAction(this.view.state, tr, {

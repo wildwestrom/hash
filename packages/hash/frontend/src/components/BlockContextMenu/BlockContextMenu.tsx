@@ -9,7 +9,10 @@ import SettingsIcon from "@mui/icons-material/SettingsOutlined";
 import { useKey } from "rooks";
 import { unstable_batchedUpdates } from "react-dom";
 
-import { EntityStore, isBlockEntity } from "@hashintel/hash-shared/entityStore";
+import {
+  EntityStoreType,
+  isBlockEntity,
+} from "@hashintel/hash-shared/entityStore";
 
 import { getBlockDomId } from "../../blocks/page/BlockView";
 import { BlockSuggesterProps } from "../../blocks/page/createSuggester/BlockSuggester";
@@ -27,10 +30,10 @@ import { useUserBlocks } from "../../blocks/userBlocks";
 import { useFilteredBlocks } from "../../blocks/page/createSuggester/useFilteredBlocks";
 
 type BlockContextMenuProps = {
+  blockData: EntityStoreType;
   blockSuggesterProps: BlockSuggesterProps;
   closeMenu: () => void;
   entityId: string | null;
-  entityStore: EntityStore;
   openConfigMenu: () => void;
 };
 
@@ -63,14 +66,12 @@ const MENU_ITEMS: Array<MenuItemType> = [
 ];
 
 export const BlockContextMenu: React.VFC<BlockContextMenuProps> = ({
+  blockData,
   blockSuggesterProps,
   closeMenu,
   entityId,
-  entityStore,
   openConfigMenu,
 }) => {
-  const blockData = entityId ? entityStore.saved[entityId] : null;
-
   if (blockData && !isBlockEntity(blockData)) {
     throw new Error("BlockContextMenu linked to non-block entity");
   }

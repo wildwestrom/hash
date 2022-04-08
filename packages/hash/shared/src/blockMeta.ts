@@ -1,5 +1,5 @@
 import { BlockMetadata, BlockVariant } from "blockprotocol";
-import { Schema as JSONSchema } from "jsonschema";
+import { JsonSchema } from "@hashintel/hash-frontend/src/lib/json-utils";
 
 /** @todo: might need refactor: https://github.com/hashintel/dev/pull/206#discussion_r723210329 */
 // eslint-disable-next-line global-require
@@ -24,7 +24,7 @@ export type Block = {
   entity: Record<any, any>;
   componentId: string;
   componentMetadata: BlockConfig;
-  componentSchema: JSONSchema;
+  componentSchema: JsonSchema;
 };
 
 /**
@@ -57,7 +57,7 @@ const toBlockConfig = (
     description: options.description ?? "",
     name: options.displayName ?? options.name,
     icon: options.icon ?? "",
-    properties: {},
+    properties: options.default ?? {},
   };
 
   const baseUrl = componentIdToUrl(componentId);

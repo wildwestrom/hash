@@ -9,6 +9,7 @@ import { BlockVariant } from "blockprotocol";
 import { ProsemirrorNode, Schema } from "prosemirror-model";
 import { NodeSelection } from "prosemirror-state";
 import { EditorView, NodeView } from "prosemirror-view";
+import { BlockMeta, fetchBlockMeta } from "@hashintel/hash-shared/blockMeta";
 import {
   createRef,
   forwardRef,
@@ -29,7 +30,6 @@ import { BlockSuggesterProps } from "./createSuggester/BlockSuggester";
 import styles from "./style.module.css";
 import { RenderPortal } from "./usePortals";
 import { BlockConfigMenu } from "../../components/BlockConfigMenu/BlockConfigMenu";
-import { BlockMeta, fetchBlockMeta } from "@hashintel/hash-shared/blockMeta";
 
 type BlockHandleProps = {
   componentId: string;
@@ -103,6 +103,8 @@ export const BlockHandle = forwardRef<HTMLDivElement, BlockHandleProps>(
       [onTypeChange],
     );
 
+    const blockData = entityId ? entityStore.saved[entityId] : null;
+
     return (
       <div
         ref={ref}
@@ -112,15 +114,19 @@ export const BlockHandle = forwardRef<HTMLDivElement, BlockHandleProps>(
         <DragVerticalIcon onClick={openContextMenu} />
         {menuVisibility.contextMenu && (
           <BlockContextMenu
+            blockData={blockData}
             entityId={entityId}
             blockSuggesterProps={blockSuggesterProps}
             closeMenu={closeMenus}
-            entityStore={entityStore}
             openConfigMenu={openConfigMenu}
           />
         )}
-        {menuVisibility.configMenu && (
-          <BlockConfigMenu blockSchema={blockSchema} closeMenu={closeMenus} />
+        {menuVisibility.configMenu && blockSchema && (
+          <BlockConfigMenu
+            blockData={blockData}
+            blockSchema={blockSchema ?? {}}
+            closeMenu={closeMenus}
+          />
         )}
       </div>
     );

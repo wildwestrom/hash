@@ -26,6 +26,8 @@ export const useFilteredBlocks = (
           }));
         }
 
+        console.log({ variant: blockMeta });
+
         return {
           variant: {
             description:
@@ -36,6 +38,7 @@ export const useFilteredBlocks = (
             name: blockMeta.displayName ?? blockMeta.name,
             properties: blockMeta.default ?? {},
           },
+
           meta: blockMeta,
         };
       },
