@@ -9119,13 +9119,6 @@ block-scripts@0.0.6:
     webpack-dev-server "^4.8.1"
     yargs-parser "21.0.1"
 
-blockprotocol@0.0.8:
-  version "0.0.8"
-  resolved "https://registry.yarnpkg.com/blockprotocol/-/blockprotocol-0.0.8.tgz#1fef8fc7bcdfc1fb132015a90fd1c962a5cce9c1"
-  integrity sha512-49rvjzpvlbtvZWsO+4c7UmKlDbMrIff6WCwtMk3DF3y/LCNliLREGxNmkOK9OT8NJ2OfubCbziGW9v6tzwCHaw==
-  dependencies:
-    "@types/react" "^17.0.39"
-
 blockprotocol@0.0.9:
   version "0.0.9"
   resolved "https://registry.yarnpkg.com/blockprotocol/-/blockprotocol-0.0.9.tgz#322f203d1385c51c84a34a1cccf248a31cfae84d"

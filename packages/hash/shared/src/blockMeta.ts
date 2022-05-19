@@ -124,6 +124,8 @@ export const fetchBlockMeta = async (
 ): Promise<BlockMeta> => {
   const baseUrl = componentIdToUrl(componentId);
 
+  console.log({ blockCache, baseUrl });
+
   if (blockCache.has(baseUrl)) {
     return blockCache.get(baseUrl)!;
   }
@@ -142,6 +144,8 @@ export const fetchBlockMeta = async (
         }`,
       );
     }
+
+    console.log({ metadata });
 
     const schemaPath = metadata.schema;
 
