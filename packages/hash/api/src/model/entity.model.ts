@@ -260,7 +260,10 @@ class __Entity {
   ): Promise<Entity[]> {
     const dbEntities = await client.getAccountEntities(params);
 
-    return dbEntities.map((dbEntity) => new Entity(dbEntity));
+    return dbEntities.map((dbEntity) => {
+      console.log(JSON.stringify(dbEntity.properties));
+      return new Entity(dbEntity);
+    });
   }
 
   static async updateProperties(

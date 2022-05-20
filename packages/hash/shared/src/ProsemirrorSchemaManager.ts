@@ -211,8 +211,11 @@ export class ProsemirrorSchemaManager {
    *
    * @todo support taking a signal
    */
-  async fetchAndDefineBlock(componentId: string): Promise<BlockMeta> {
-    const meta = await fetchBlockMeta(componentId);
+  async fetchAndDefineBlock(
+    componentId: string,
+    bustCache?: boolean,
+  ): Promise<BlockMeta> {
+    const meta = await fetchBlockMeta(componentId, bustCache);
 
     await this.defineRemoteBlock(componentId);
 

@@ -10,15 +10,11 @@ type AppProps = {
 };
 
 function translateToAssetResult(image: BlockProtocolEntity) {
-  if (
-    typeof image.file !== "object" ||
-    !(image.file as any).url ||
-    typeof (image.file as any).url !== "string"
-  ) {
+  if (typeof image.url !== "string") {
     throw new Error(`Entity does not have a 'url' property`);
   }
 
-  const url = (image.file as any).url as string;
+  const url = image.url;
 
   return {
     id: image.entityId,
@@ -43,6 +39,7 @@ function translateToAssetResult(image: BlockProtocolEntity) {
 }
 
 export const App: BlockComponent<AppProps> = ({
+  accountId,
   aggregateEntities,
   entityId,
 }) => {
@@ -54,33 +51,37 @@ export const App: BlockComponent<AppProps> = ({
         const { page, perPage } = queryData;
 
         const { results, operation } = await aggregateEntities({
+          accountId,
           operation: {
             itemsPerPage: perPage,
             pageNumber: page,
             multiFilter: {
               filters: [
                 {
-                  field: "file.url",
+                  field: "url",
                   operator: "ENDS_WITH",
                   value: ".svg",
                 },
                 {
-                  field: "file.url",
+                  field: "url",
                   operator: "ENDS_WITH",
                   value: ".png",
                 },
                 {
-                  field: "file.url",
+                  field: "url",
                   operator: "ENDS_WITH",
                   value: ".jpg",
+                },
+                {
+                  field: "url",
+                  operator: "ENDS_WITH",
+                  value: ".jpeg",
                 },
               ],
               operator: "OR",
             },
           },
         });
-
-        console.log({ results });
 
         return {
           assets: results.map(translateToAssetResult),
@@ -125,7 +126,7 @@ export const App: BlockComponent<AppProps> = ({
             hideLabels: false, // false or true
           },
           libraries: {
-            template: true, // true or false
+            template: false, // true or false
             image: true, // true or false
             text: true, // true or false
             element: true, // true or false
@@ -152,7 +153,7 @@ export const App: BlockComponent<AppProps> = ({
         },
       },
     };
-  }, [aggregateEntities]);
+  }, [accountId, aggregateEntities]);
 
   React.useEffect(() => {
     if (cesdk_container.current) {

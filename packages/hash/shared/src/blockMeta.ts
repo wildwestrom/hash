@@ -121,12 +121,13 @@ const transformBlockConfig = ({
 // @todo deal with errors, loading, abort etc.
 export const fetchBlockMeta = async (
   componentId: string,
+  bustCache?: boolean,
 ): Promise<BlockMeta> => {
   const baseUrl = componentIdToUrl(componentId);
 
-  console.log({ blockCache, baseUrl });
-
-  if (blockCache.has(baseUrl)) {
+  if (bustCache) {
+    blockCache.delete(baseUrl);
+  } else if (blockCache.has(baseUrl)) {
     return blockCache.get(baseUrl)!;
   }
 
@@ -145,8 +146,6 @@ export const fetchBlockMeta = async (
       );
     }
 
-    console.log({ metadata });
-
     const schemaPath = metadata.schema;
 
     // schema urls may be absolute, as blocks may rely on schemas they do not define
@@ -155,6 +154,9 @@ export const fetchBlockMeta = async (
     try {
       schemaUrl = deriveAbsoluteUrl({ baseUrl, path: schemaPath });
       schema = schemaUrl ? await (await fetch(schemaUrl)).json() : {};
+      if (!schema) {
+        throw new Error(`Invalid block schema: ${schema}`);
+      }
     } catch (err) {
       blockCache.delete(baseUrl);
       throw new Error(
