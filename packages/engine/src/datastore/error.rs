@@ -20,9 +20,6 @@ pub enum Error {
     #[error("Serde Error: {0}")]
     Serde(#[from] serde_json::Error),
 
-    #[error("Shared memory error: {0}")]
-    SharedMemory(#[from] shared_memory::ShmemError),
-
     #[error("No column found in batch with name: {0}")]
     ColumnNotFound(String),
 

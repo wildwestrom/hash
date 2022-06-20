@@ -22,12 +22,6 @@ impl From<(&str, &str)> for SimulationRunError {
     }
 }
 
-impl Error {
-    pub fn user_facing_string(self) -> String {
-        stringify_error(self)
-    }
-}
-
 #[derive(ThisError, Debug)]
 pub enum Error {
     #[error("Serialize/Deserialize error")]
@@ -130,48 +124,6 @@ impl From<String> for Error {
         Error::Unique(s)
     }
 }
-
-// TODO: OS - revisit these "stringify" methods, they are messy and clearly WIP.
-fn stringify_error(error: Error) -> String {
-    match &error {
-        Error::Datastore(datastore_error) => stringify_datastore_error(datastore_error, &error),
-        // Error::WorkerHandler(worker_handler_error) => {
-        //     stringify_worker_handler_error(worker_handler_error, &error)
-        // }
-        _ => error.to_string(),
-    }
-}
-
-fn stringify_datastore_error(error: &crate::datastore::Error, original_error: &Error) -> String {
-    match error {
-        crate::datastore::Error::SharedMemory(shmem_error) => {
-            match shmem_error {
-                shared_memory::ShmemError::DevShmOutOfMemory => {
-                    // TODO: Use a static string instead of allocating a string here.
-                    "Experiment has run out of memory.".into()
-                }
-                _ => error.to_string(),
-            }
-        }
-        _ => original_error.to_string(),
-    }
-}
-
-// fn stringify_worker_handler_error(
-//     error: &worker::error::Error,
-//     original_error: &Error,
-// ) -> String {
-//     match error {
-//         worker::Error::JavascriptRunner(javascript_runner_error) =>
-//             match javascript_runner_error {
-//                 worker::internal::js::error::Error::Datastore(datastore_error) => {
-//                     stringify_datastore_error(datastore_error, original_error)
-//             }
-//             _ => original_error.to_string(),
-//         },
-//         _ => original_error.to_string(),
-//     }
-// }
 
 impl<'a, T> From<std::sync::TryLockError<std::sync::RwLockReadGuard<'a, T>>> for Error {
     fn from(_: std::sync::TryLockError<std::sync::RwLockReadGuard<'a, T>>) -> Self {

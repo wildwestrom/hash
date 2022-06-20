@@ -990,7 +990,6 @@ dependencies = [
  "serde",
  "serde-aux",
  "serde_json",
- "shared_memory",
  "simulation_structure",
  "stateful",
  "strum_macros",
