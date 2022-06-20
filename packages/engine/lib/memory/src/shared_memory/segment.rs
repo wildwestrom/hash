@@ -227,6 +227,7 @@ impl Segment {
             .size(new_size)
             .create()?;
         unsafe { std::ptr::copy_nonoverlapping(self.data.as_ptr(), new_data.as_ptr(), self.size) };
+        self.data.unmap();
         self.data = new_data;
         self.reload()
     }
