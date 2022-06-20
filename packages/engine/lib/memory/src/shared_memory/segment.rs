@@ -161,8 +161,8 @@ pub fn cleanup_by_base_id(id: Uuid) -> Result<()> {
 //           just `Version`? It also should live inside of `SegmentHeader`
 //         - Remove the old "Header data"
 pub struct Segment {
-    pub data: Shmem,
-    pub size: usize,
+    data: Shmem,
+    size: usize,
     include_terminal_padding: bool,
 }
 
@@ -183,17 +183,12 @@ pub struct Segment {
 
 // Constructors for Memory
 impl Segment {
-    // TODO: UNUSED: Needs triage
-    pub fn as_ptr(&self) -> *const u8 {
-        self.data.as_ptr()
+    pub fn data_ptr(&self) -> *const u8 {
+        self.data.as_ptr() as *const u8
     }
 
-    // TODO: `data.as_mut_ptr`, with `&mut self` argument, to avoid
-    //       violating Rust's aliasing rules for pointers derived
-    //       from const references.
-    // TODO: UNUSED: Needs triage
-    pub fn as_mut_ptr(&mut self) -> *mut u8 {
-        self.data.as_ptr()
+    pub fn data_len(&self) -> usize {
+        self.size
     }
 
     /// Resize the Shared Memory segment, also performs

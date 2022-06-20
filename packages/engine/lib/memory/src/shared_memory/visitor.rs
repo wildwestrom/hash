@@ -268,7 +268,7 @@ impl<'mem: 'v, 'v> VisitorMut<'mem> {
     fn prepare_buffer_write(&mut self, buffer: &Buffer, num_bytes: usize) -> Result<BufferChange> {
         let cur_accommodation_size = self
             .markers()
-            .buffer_can_be_extended_to(buffer, self.memory.size);
+            .buffer_can_be_extended_to(buffer, self.memory.data_len());
 
         let shifted = cur_accommodation_size < num_bytes;
 
@@ -281,7 +281,7 @@ impl<'mem: 'v, 'v> VisitorMut<'mem> {
                 .extend_buffer_with_shift(buffer, num_bytes);
 
             let min_size = self.markers().get_total_contents_size();
-            resized = min_size > self.memory.size;
+            resized = min_size > self.memory.data_len();
 
             if resized {
                 self.resize(min_size)?;
@@ -339,7 +339,7 @@ impl<'mem: 'v, 'v> VisitorMut<'mem> {
     }
 
     fn get_all_mut(&'v self) -> &'mem mut [u8] {
-        unsafe { self.ptr().read_mut_exact(0, self.memory.size) }
+        unsafe { self.ptr().read_mut_exact(0, self.memory.data_len()) }
     }
 }
 
