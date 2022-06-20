@@ -1,4 +1,4 @@
-use std::{env, fmt, mem, path::Path};
+use std::{fmt, mem, path::Path};
 
 use glob::GlobError;
 use shared_memory::{Shmem, ShmemConf};
@@ -227,8 +227,7 @@ impl Segment {
             .size(new_size)
             .create()?;
         unsafe { std::ptr::copy_nonoverlapping(self.data.as_ptr(), new_data.as_ptr(), self.size) };
-        self.data.unmap();
-        self.data = new_data;
+        mem::replace(&mut self.data, new_data).unmap();
         self.reload()
     }
 
@@ -505,7 +504,7 @@ impl Segment {
         include_terminal_padding: bool,
     ) -> Result<Segment> {
         let markers = Visitor::markers_from_sizes(schema_size, header_size, meta_size, data_size);
-        let mut size = Self::calculate_total_size(
+        let size = Self::calculate_total_size(
             markers.get_total_contents_size(),
             include_terminal_padding,
         )?;
@@ -534,7 +533,7 @@ impl Segment {
         let markers =
             Visitor::markers_from_sizes(schema.len(), header.len(), ipc_message.len(), data.len());
 
-        let mut size = Self::calculate_total_size(
+        let size = Self::calculate_total_size(
             markers.get_total_contents_size(),
             include_terminal_padding,
         )?;
