@@ -1,0 +1,46 @@
+{
+  "name": "cesdk-block",
+  "version": "0.0.0",
+  "description": "cesdk-block block",
+  "keywords": [
+    "blockprotocol",
+    "blocks"
+  ],
+  "license": "MIT",
+  "author": "Mirko Budszuhn",
+  "scripts": {
+    "build": "block-scripts build",
+    "dev": "block-scripts dev",
+    "lint:tsc": "tsc --noEmit",
+    "serve": "block-scripts serve"
+  },
+  "dependencies": {
+    "@blockprotocol/graph": "0.0.8",
+    "@cesdk/cesdk-js": "^1.5.0"
+  },
+  "devDependencies": {
+    "block-scripts": "0.0.11",
+    "mock-block-dock": "0.0.15",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  },
+  "peerDependencies": {
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  },
+  "block-scripts": {
+    "port": 63212
+  },
+  "blockprotocol": {
+    "blockType": {
+      "entryPoint": "react"
+    },
+    "displayName": "cesdk-block",
+    "examples": [
+      {}
+    ],
+    "icon": "public/omega.svg",
+    "image": "public/block-preview.svg",
+    "protocol": "0.2"
+  }
+}
