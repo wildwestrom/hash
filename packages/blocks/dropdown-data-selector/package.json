@@ -1,18 +1,11 @@
 {
-  "name": "@hashintel/github-pr-overview",
+  "name": "@hashintel/dropdown-data-selector",
   "version": "0.0.0",
-  "description": "Display an overview of a GitHub Pull Request, including a timeline of key events",
+  "description": "Dropdown Data-Selector block",
   "keywords": [
     "blockprotocol",
-    "blocks",
-    "github",
-    "pullrequest"
+    "blocks"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/hashintel/hash.git",
-    "directory": "packages/blocks/github-pr-overview"
-  },
   "license": "MIT",
   "author": "Alfred Mountfield",
   "scripts": {
@@ -24,11 +17,8 @@
     "serve": "block-scripts serve"
   },
   "dependencies": {
-    "@mui/icons-material": "5.4.2",
-    "@mui/lab": "5.0.0-alpha.71",
     "@mui/material": "5.4.3",
     "blockprotocol": "0.0.10",
-    "date-fns": "2.28.0",
     "lodash": "4.17.21"
   },
   "devDependencies": {
@@ -43,14 +33,17 @@
   },
   "block-scripts": {
     "devPort": 9090,
-    "servePort": 63222
+    "servePort": 63214
   },
   "blockprotocol": {
-    "displayName": "GitHub Pull-Request Overview",
+    "blockType": {
+      "entryPoint": "react"
+    },
+    "displayName": "dropdown-data-selector",
     "examples": [
       {}
     ],
-    "icon": "public/pull-request.svg",
+    "icon": "public/omega.svg",
     "image": "public/block-preview.svg"
   }
 }
