@@ -1,8 +1,10 @@
+import React from "react";
+
 import { Select, MenuItem } from "@mui/material";
 import { BlockProtocolEntity } from "blockprotocol";
 
 export type EntitySelectorProps = {
-  entities: BlockProtocolEntity[];
+  entities: BlockProtocolEntity[] | undefined;
   selectedEntity: string;
   setSelectedEntity: (x: any) => void;
 };
@@ -23,14 +25,17 @@ export const EntitySelector: React.FunctionComponent<EntitySelectorProps> = ({
       value={selectedEntity}
       label="Entity"
       onChange={handleSelectChange}
+      disabled={entities == null}
     >
-      {entities.map((entity) => {
-        return (
-          <MenuItem key={entity.entityId} value={entity.entityId}>
-            {entity.entityId}
-          </MenuItem>
-        );
-      })}
+      {entities != null
+        ? entities.map((entity) => {
+            return (
+              <MenuItem key={entity.entityId} value={entity.entityId}>
+                {entity.entityId}
+              </MenuItem>
+            );
+          })
+        : undefined}
     </Select>
   );
 };

@@ -1,3 +1,5 @@
+import React from "react";
+
 import { Select, MenuItem } from "@mui/material";
 import { BlockProtocolEntityType } from "blockprotocol";
 

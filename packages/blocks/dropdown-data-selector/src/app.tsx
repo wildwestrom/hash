@@ -61,7 +61,7 @@ export const App: BlockComponent<BlockEntityProperties> = ({
             setSelectedEntityType={setSelectedEntityType}
           />
           <EntitySelector
-            entities={entities!}
+            entities={entities}
             selectedEntity={selectedEntity}
             setSelectedEntity={setSelectedEntity}
           />
