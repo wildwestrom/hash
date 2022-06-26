@@ -7,6 +7,7 @@ import { BlockState } from "./app/state";
 import { EntityTypeSelector } from "./app/entity-type-selector";
 import { getEntities } from "./app/get-entities";
 import { EntitySelector } from "./app/entity-selector";
+import { VariableStore } from "./app/variable-store";
 
 type BlockEntityProperties = {};
 
@@ -20,7 +21,8 @@ export const App: BlockComponent<BlockEntityProperties> = ({
   const [entityTypes, setEntityTypes] = useState<BlockProtocolEntityType[]>();
   const [selectedEntityType, setSelectedEntityType] = useState("");
   const [entities, setEntities] = useState<BlockProtocolEntity[]>();
-  const [selectedEntity, setSelectedEntity] = useState("");
+  const [selectedEntity, setSelectedEntity] = useState();
+  const [variableName, setVariableName] = useState();
 
   useEffect(() => {
     if (!entityTypes && aggregateEntityTypes) {
@@ -33,6 +35,12 @@ export const App: BlockComponent<BlockEntityProperties> = ({
       );
     }
   }, [accountId, aggregateEntityTypes, entityTypes, setEntityTypes]);
+
+  useEffect(() => {
+    // if selectedEntityType changes, remove entity selection
+    setEntities(undefined);
+    setSelectedEntity(undefined);
+  }, [selectedEntityType, setEntities, setSelectedEntity]);
 
   useEffect(() => {
     if (selectedEntityType && aggregateEntities) {
@@ -64,6 +72,11 @@ export const App: BlockComponent<BlockEntityProperties> = ({
             entities={entities}
             selectedEntity={selectedEntity}
             setSelectedEntity={setSelectedEntity}
+          />
+          <VariableStore
+            disabled={selectedEntity}
+            variableName={variableName}
+            setVariableName={setVariableName}
           />
         </Container>
       );

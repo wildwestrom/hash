@@ -13,6 +13,7 @@ export const EntityTypeSelector: React.FunctionComponent<
   EntityTypeSelectorProps
 > = ({ entityTypes, selectedEntityType, setSelectedEntityType }) => {
   const handleSelectChange = (event: any) => {
+    console.log(`Selecting Entity Type: ${event.target.value}`);
     setSelectedEntityType(event.target.value);
   };
 

@@ -5,7 +5,7 @@ import { BlockProtocolEntity } from "blockprotocol";
 
 export type EntitySelectorProps = {
   entities: BlockProtocolEntity[] | undefined;
-  selectedEntity: string;
+  selectedEntity: string | undefined;
   setSelectedEntity: (x: any) => void;
 };
 
@@ -15,6 +15,7 @@ export const EntitySelector: React.FunctionComponent<EntitySelectorProps> = ({
   setSelectedEntity,
 }) => {
   const handleSelectChange = (event: any) => {
+    console.log(`Selecting Entity: ${event.target.value}`);
     setSelectedEntity(event.target.value);
   };
 
@@ -22,7 +23,7 @@ export const EntitySelector: React.FunctionComponent<EntitySelectorProps> = ({
     <Select
       labelId="entity-selector-label"
       id="entity-selector"
-      value={selectedEntity}
+      value={selectedEntity ?? ""}
       label="Entity"
       onChange={handleSelectChange}
       disabled={entities == null}
