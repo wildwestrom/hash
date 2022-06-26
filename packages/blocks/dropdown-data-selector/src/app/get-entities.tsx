@@ -37,6 +37,7 @@ export const getEntities = (
       }
     })
     .catch((err) => {
+      setBlockState(BlockState.Error);
       throw err;
     });
 };

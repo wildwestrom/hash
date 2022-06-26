@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { TextField } from "@mui/material";
 
 export type VariableStoreProps = {
@@ -12,7 +12,14 @@ export const VariableStore: React.FunctionComponent<VariableStoreProps> = ({
   variableName,
   setVariableName,
 }) => {
+  const [value, setValue] = useState(variableName ?? "");
+
   const handleChange = (event: any) => {
+    setValue(event.target.value);
+  };
+
+  const handleSubmit = (event: any) => {
+    console.log(`Setting Variable Name: ${event.target.value}`);
     setVariableName(event.target.value);
   };
 
@@ -22,8 +29,9 @@ export const VariableStore: React.FunctionComponent<VariableStoreProps> = ({
       id="selection-variable"
       label="Store Selection under"
       variant="outlined"
-      value={variableName ?? ""}
+      value={value}
       onChange={handleChange}
+      onBlur={handleSubmit}
     />
   );
 };

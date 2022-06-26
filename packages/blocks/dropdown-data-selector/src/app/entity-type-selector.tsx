@@ -5,23 +5,23 @@ import { BlockProtocolEntityType } from "blockprotocol";
 
 export type EntityTypeSelectorProps = {
   entityTypes: BlockProtocolEntityType[];
-  selectedEntityType: string;
-  setSelectedEntityType: (x: any) => void;
+  selectedEntityTypeId: string;
+  setSelectedEntityTypeId: (x: any) => void;
 };
 
 export const EntityTypeSelector: React.FunctionComponent<
   EntityTypeSelectorProps
-> = ({ entityTypes, selectedEntityType, setSelectedEntityType }) => {
+> = ({ entityTypes, selectedEntityTypeId, setSelectedEntityTypeId }) => {
   const handleSelectChange = (event: any) => {
     console.log(`Selecting Entity Type: ${event.target.value}`);
-    setSelectedEntityType(event.target.value);
+    setSelectedEntityTypeId(event.target.value);
   };
 
   return (
     <Select
       labelId="entity-type-selector-label"
       id="entity-type-selector"
-      value={selectedEntityType}
+      value={selectedEntityTypeId}
       label="Entity Type"
       onChange={handleSelectChange}
     >

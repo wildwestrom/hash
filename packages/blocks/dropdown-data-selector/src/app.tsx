@@ -9,20 +9,36 @@ import { getEntities } from "./app/get-entities";
 import { EntitySelector } from "./app/entity-selector";
 import { VariableStore } from "./app/variable-store";
 
-type BlockEntityProperties = {};
+type BlockEntityProperties = {
+  selectedEntityTypeId?: string;
+  selectedEntityId?: string;
+  variableName?: string;
+};
 
 export const App: BlockComponent<BlockEntityProperties> = ({
-  // entityId,
+  entityId,
+  entityTypeId,
   accountId,
+  updateEntities,
   aggregateEntityTypes,
   aggregateEntities,
+  createLinkedAggregations,
+  createLinks,
+  selectedEntityTypeId: storedSelectedEntityTypeId,
+  selectedEntityId: storedSelectedEntityId,
+  variableName: storedVariableName,
 }) => {
+  console.log(entityId);
   const [blockState, setBlockState] = useState(BlockState.Loading);
   const [entityTypes, setEntityTypes] = useState<BlockProtocolEntityType[]>();
-  const [selectedEntityType, setSelectedEntityType] = useState("");
+  const [selectedEntityTypeId, setSelectedEntityTypeId] = useState(
+    storedSelectedEntityTypeId ?? "",
+  );
   const [entities, setEntities] = useState<BlockProtocolEntity[]>();
-  const [selectedEntity, setSelectedEntity] = useState();
-  const [variableName, setVariableName] = useState();
+  const [selectedEntityId, setSelectedEntityId] = useState(
+    storedSelectedEntityId,
+  );
+  const [variableName, setVariableName] = useState(storedVariableName);
 
   useEffect(() => {
     if (!entityTypes && aggregateEntityTypes) {
@@ -38,22 +54,105 @@ export const App: BlockComponent<BlockEntityProperties> = ({
 
   useEffect(() => {
     // if selectedEntityType changes, remove entity selection
-    setEntities(undefined);
-    setSelectedEntity(undefined);
-  }, [selectedEntityType, setEntities, setSelectedEntity]);
+    if (selectedEntityTypeId !== storedSelectedEntityTypeId) {
+      setEntities(undefined);
+      setSelectedEntityId(undefined);
+    }
+  }, [
+    selectedEntityTypeId,
+    storedSelectedEntityTypeId,
+    setEntities,
+    setSelectedEntityId,
+  ]);
 
   useEffect(() => {
-    if (selectedEntityType && aggregateEntities) {
+    if (selectedEntityTypeId && aggregateEntities) {
       getEntities(
         aggregateEntities,
-        selectedEntityType,
+        selectedEntityTypeId,
         accountId,
         5,
         setEntities,
         setBlockState,
       );
     }
-  }, [accountId, aggregateEntities, selectedEntityType, setEntities]);
+  }, [accountId, aggregateEntities, selectedEntityTypeId, setEntities]);
+
+  useEffect(() => {
+    if (variableName && createLinkedAggregations && createLinks) {
+      createLinkedAggregations([
+        {
+          sourceAccountId: accountId,
+          sourceEntityId: entityId,
+          sourceEntityTypeId: entityTypeId,
+          path: "$.queryEntityType",
+          operation: {
+            entityTypeId: selectedEntityTypeId,
+            itemsPerPage: 100,
+          },
+        },
+      ])
+        .then((res) =>
+          console.log(`Made LinkedAggregation: ${JSON.stringify(res[0])}`),
+        )
+        .catch((err) => {
+          console.log(err);
+        });
+
+      createLinks([
+        {
+          sourceAccountId: accountId,
+          sourceEntityId: entityId,
+          path: "$.selectedEntity",
+          destinationEntityId: selectedEntityId!,
+        },
+      ])
+        .then((res) => console.log(`Made Link: ${JSON.stringify(res[0])}`))
+        .catch((err) => {
+          console.log(err);
+        });
+    }
+  }, [
+    entityId,
+    entityTypeId,
+    accountId,
+    createLinkedAggregations,
+    createLinks,
+    selectedEntityId,
+    selectedEntityTypeId,
+    variableName,
+    setBlockState,
+  ]);
+
+  useEffect(() => {
+    if (
+      updateEntities &&
+      selectedEntityTypeId &&
+      selectedEntityId &&
+      variableName
+    ) {
+      updateEntities([
+        {
+          entityId,
+          accountId,
+          data: {
+            selectedEntityTypeId,
+            selectedEntityId,
+            variableName,
+          },
+        },
+      ]).catch((err) => {
+        throw err;
+      });
+    }
+  }, [
+    accountId,
+    entityId,
+    updateEntities,
+    selectedEntityId,
+    selectedEntityTypeId,
+    variableName,
+  ]);
 
   switch (blockState) {
     case BlockState.Error:
@@ -65,16 +164,16 @@ export const App: BlockComponent<BlockEntityProperties> = ({
         <Container>
           <EntityTypeSelector
             entityTypes={entityTypes!}
-            selectedEntityType={selectedEntityType}
-            setSelectedEntityType={setSelectedEntityType}
+            selectedEntityTypeId={selectedEntityTypeId}
+            setSelectedEntityTypeId={setSelectedEntityTypeId}
           />
           <EntitySelector
             entities={entities}
-            selectedEntity={selectedEntity}
-            setSelectedEntity={setSelectedEntity}
+            selectedEntityId={selectedEntityId}
+            setSelectedEntityId={setSelectedEntityId}
           />
           <VariableStore
-            disabled={selectedEntity}
+            disabled={selectedEntityId}
             variableName={variableName}
             setVariableName={setVariableName}
           />

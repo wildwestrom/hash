@@ -36,6 +36,7 @@ export const getEntityTypes = (
       }
     })
     .catch((err) => {
+      setBlockState(BlockState.Error);
       throw err;
     });
 };
