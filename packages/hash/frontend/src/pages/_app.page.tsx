@@ -45,6 +45,9 @@ const App: React.VoidFunctionComponent<AppProps> = ({
   const { user } = useUser({ client: apolloClient });
 
   useEffect(() => {
+    setInterval(() => {
+      console.log(document.activeElement);
+    }, 1000);
     configureScope((scope) =>
       // eslint-disable-next-line no-console -- TODO: consider using logger
       console.log(`Build: ${scope.getSession()?.release ?? "not set"}`),

@@ -2,7 +2,7 @@ import { BlockMeta } from "@hashintel/hash-shared/blockMeta";
 import { createProseMirrorState } from "@hashintel/hash-shared/createProseMirrorState";
 import { apiOrigin } from "@hashintel/hash-shared/environment";
 import { ProsemirrorSchemaManager } from "@hashintel/hash-shared/ProsemirrorSchemaManager";
-// import applyDevTools from "prosemirror-dev-tools";
+import applyDevTools from "prosemirror-dev-tools";
 import { ProsemirrorNode, Schema } from "prosemirror-model";
 import { Plugin } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
@@ -133,6 +133,7 @@ export const createEditorView = (
   );
 
   view.dom.classList.add(styles.ProseMirror!);
+  view.dom.id = "editor";
 
   // prosemirror will use the first node type (per group) for auto-creation.
   // we want this to be the paragraph node type.
@@ -152,7 +153,7 @@ export const createEditorView = (
   blocksMetaArray.forEach((blockMeta) => manager.defineNewBlock(blockMeta));
 
   // @todo figure out how to use dev tools without it breaking fast refresh
-  // applyDevTools(view);
+  applyDevTools(view);
 
   return { view, connection, manager };
 };

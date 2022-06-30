@@ -8,7 +8,7 @@ import { BlockConfig } from "@hashintel/hash-shared/blockMeta";
 import { ProsemirrorSchemaManager } from "@hashintel/hash-shared/ProsemirrorSchemaManager";
 import { BlockVariant } from "blockprotocol";
 import { ProsemirrorNode, Schema } from "prosemirror-model";
-import { NodeSelection } from "prosemirror-state";
+import { NodeSelection, TextSelection, AllSelection } from "prosemirror-state";
 import { EditorView, NodeView } from "prosemirror-view";
 import { createRef } from "react";
 
@@ -67,6 +67,43 @@ export class BlockView implements NodeView<Schema> {
     this.dom.classList.add(styles.Block!);
     this.dom.setAttribute("data-testid", "block");
     this.dom.setAttribute("tabIndex", "0");
+
+    document.addEventListener(
+      "selectionchange",
+      () => {
+        const coords = document
+          .getSelection()
+          ?.getRangeAt(0)
+          .getClientRects()[0];
+        console.log(coords);
+
+        const { state, dispatch } = this.editorView;
+        // console.log(state)
+        // console.log(state.selection)
+        // console.log(endPos)
+        const pos = this.editorView.posAtCoords({
+          left: coords!.x,
+          top: coords!.y,
+        });
+        console.log(pos);
+        // (state.doc.resolve(pos!.pos))
+        const selection = new TextSelection(state.doc.resolve(pos!.pos));
+        let transaction = state.tr.setSelection(selection);
+        if (dispatch) dispatch(transaction.scrollIntoView());
+
+        if (document.activeElement?.id !== "editor") {
+          document.getElementById("editor")?.focus();
+        }
+      },
+      true,
+    );
+
+    // this.dom.addEventListener("focus", (event) => {
+    //   event?.preventDefault()
+    //   if(document.activeElement?.id !== "editor") {
+    //     document.getElementById("editor")?.focus()
+    //   }
+    // }, true)
 
     this.selectContainer = document.createElement("div");
     this.selectContainer.classList.add(styles.Block__UI!);
